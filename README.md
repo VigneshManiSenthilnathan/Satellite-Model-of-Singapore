@@ -256,7 +256,7 @@ Satellite-Model-of-Singapore/
 │   ├── tickers.py              # ✓ loader for config/tickers.yaml
 │   ├── panel.py                # ✓ panel columns, load_panel(), synthetic-mode switch
 │   ├── synthetic.py            # ✓ seeded synthetic panel (no Bloomberg needed)
-│   ├── collect_data.py         # Pull every registry series through bloomberg.py
+│   ├── collect_data.py         # ✓ Pull every registry series through bloomberg.py + re-verify registry
 │   ├── process_data.py         # Transformations → model-ready variables
 │   ├── raw/                    # Downloaded raw data files       (git-ignored)
 │   ├── processed/              # Transformed quarterly panel     (git-ignored)

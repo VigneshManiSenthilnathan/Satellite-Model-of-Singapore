@@ -77,7 +77,7 @@ singapore:
     - {ticker: "SPLRPRIM Index", var: CSI,  role: primary,    freq: M, sa: false, form: rate,     span: 1983Q1-2021Q2}  # Singapore prime lending rate (MAS, banks' average)
     - {ticker: "5766615 Index",  var: CSI,  role: history,    freq: M, sa: false, form: rate,     span: 1980Q1-2021Q2}  # IMF IFS Singapore lending rate (back-cast 1980-82)
     - {ticker: "SPLRHOUS Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 1983Q1-2022Q4}  # Singapore 15-year housing loan rate (consumer-loan proxy)
-    - {ticker: "SIIRPLRT Index", var: CSI,  role: reference,  freq: M, sa: false, form: rate,     span: 1992Q1-2003Q1}  # Singapore domestic prime lending rate (old series)
+    - {ticker: "SIIRPLRT Index", var: CSI,  role: reference,  freq: M, sa: false, form: rate,     span: 1990Q1-2003Q1}  # Singapore domestic prime lending rate (old series)
     # post-2021 lending rate: NOT FOUND — see known_gaps.csi_lending_post_2021
 
   csi_deposit_rates:
@@ -85,7 +85,7 @@ singapore:
     - {ticker: "SPLRWFD3 Index", var: CSI,  role: post,       freq: M, sa: false, form: rate,     span: 2021Q3-2026Q2}  # Weighted average 3-month fixed deposit rate (< S$75k) — successor series
     - {ticker: "5766601 Index",  var: CSI,  role: history,    freq: M, sa: false, form: rate,     span: 1980Q1-2021Q2}  # IMF IFS Singapore deposit rate (back-cast 1980-82)
     - {ticker: "SIFDR3M Index",  var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 1982Q1-2021Q2}  # Singapore 3-month fixed deposit rate (alternative series)
-    - {ticker: "SIIRSADE Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 1992Q1-2021Q2}  # Singapore savings deposit rate
+    - {ticker: "SIIRSADE Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 1983Q1-2021Q2}  # Singapore savings deposit rate
     - {ticker: "SPLRWSDL Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 2021Q3-2026Q2}  # Weighted average savings deposit rate (< S$75k)
 
   csi_net_interest_margin:   # field differs from PX_LAST; quarterly company fundamentals, %
@@ -133,8 +133,8 @@ trade:
     - {ticker: "SIEXTOPH Index", partner: PH, role: primary,   span: 2001Q4-2002Q4, status: gap}  # NODX to Philippines — only 2001-02; unusable
     - {ticker: "SIEXTOAU Index", partner: AU, role: primary,   span: 1998Q4-2005Q4, status: gap}  # NODX to Australia — stops 2005; unusable
     - {ticker: "SIEXOTHC Index", partner: other, role: reference, span: 1998Q4-2024Q4}  # NODX to other countries
-    - {ticker: "SIEXPNO Index",  partner: total, role: reference, span: 1999Q1-2026Q2}  # Total NODX, current prices (denominator check)
-    - {ticker: "SIEXDOME Index", partner: total, role: reference, span: 2010Q1-2026Q2}  # Total domestic exports (oil + non-oil), current prices
+    - {ticker: "SIEXPNO Index",  partner: total, role: reference, span: 1980Q1-2026Q2}  # Total NODX, current prices (denominator check)
+    - {ticker: "SIEXDOME Index", partner: total, role: reference, span: 1980Q1-2026Q2}  # Total domestic exports (oil + non-oil), current prices
 
   total_exports_by_partner:   # Total exports incl. re-exports — robustness variant for omega_i, and fills NODX gaps
     - {ticker: "SEMCUSA Index",  partner: US, span: 1980Q1-2026Q3}  # Exports to United States
@@ -367,7 +367,7 @@ foreign:
       - {ticker: "UKGRABIQ Index", role: crosscheck, freq: Q, sa: true,  form: qoq,   span: 1980Q1-2026Q2}  # UK real GDP, q/q %
     cpi:
       - {ticker: "1126639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS UK CPI
-      - {ticker: "UKRPCJYR Index", role: crosscheck, freq: M, sa: false, form: yoy,   span: 1989Q1-2026Q3}  # UK CPI y/y %, NSA
+      - {ticker: "UKRPCJYR Index", role: crosscheck, freq: M, sa: false, form: yoy,   span: 1980Q1-2026Q3}  # UK CPI y/y %, NSA
 
 # -----------------------------------------------------------------------------
 # 5. Bloomberg economist consensus forecasts (ECFC) — foreign outlook for
@@ -382,7 +382,7 @@ consensus:
   templates:
     gdp:          "ECGD{cc} {yy} Index"   # consensus real GDP growth, calendar-year average, %
     cpi:          "ECPI{cc} {yy} Index"   # consensus CPI inflation, calendar-year average, %
-    policy_rate:  "ECPO{cc} {yy} Index"   # consensus policy rate, year-end median, % (verified for US only)
+    policy_rate:  "ECPO{cc} {yy} Index"   # consensus policy rate, year-end median, % — US resolves but returns NO DATA; see known_gaps.us_policy_rate_consensus
   countries: [US, EU, JP, CN, HK, IN, ID, KR, MY, PH, TW, TH, BR, MX, CL, CO, PE, AU, CA, GB, SG]   # all verified for GDP and CPI
   policy_rate_countries: [US]   # ECPOEU / ECPOJN / ECPOCN / ECPOSG do not exist
 
@@ -414,6 +414,12 @@ known_gaps:
     SIBOR starts 1999Q3. RS before then uses the IMF interbank money-market
     rate (5766586), which may be an overnight rather than a 3-month rate;
     check the definition and level difference over the 1999-2021 overlap.
+  us_policy_rate_consensus: >-
+    ECPOUS {yy} Index resolves ("US Federal Funds Rate Forecast") but has no
+    PX_LAST, neither reference nor history, for any year 2015-2028 (checked
+    2026-10-27 with collect_data). Needed for the RR_US forecast path in P5.6.
+    Options: find the field that carries the value (FLDS), or use another
+    source for the expected fed funds path (e.g. fed funds futures / OIS).
   bloc_membership: >-
     Countries are assigned to blocs provisionally. Confirm GPM7 EA7/LA7/RC7
     membership in P3.7 and update the `bloc` keys.

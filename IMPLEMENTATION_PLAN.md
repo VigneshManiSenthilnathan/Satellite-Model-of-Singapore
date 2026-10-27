@@ -5,7 +5,7 @@ sessions. The model specification (equations, variables, source-document
 inconsistencies) is in [README.md](README.md); this file covers **what to build,
 in what order, and how to know it's done**.
 
-**Last updated:** 2026-10-27  ·  **Current phase:** 1 (data layer; Phase 0 complete, next up P1.6a / P1.6b `collect_data.py`)  ·  **User decisions:** D1–D7 recorded in the [Decision log](#decision-log); no open blockers
+**Last updated:** 2026-10-27  ·  **Current phase:** 1 (data layer; Phase 0 complete; P1.1, P1.6b done; next up P1.3 vintage loader and P1.6a known gaps)  ·  **User decisions:** D1–D7 recorded in the [Decision log](#decision-log); no open blockers
 
 ---
 
@@ -92,7 +92,12 @@ P7 Testing, validation & documentation runs alongside every phase
   - units of `CGE9ANN` and `PHNAGDP` (confirm with `DES <GO>`)
   - definition of the pre-1999 RS back-cast (`5766586`)
   - provisional bloc assignment (closes with P3.7)
-- [~] **P1.6b** Loader done 2026-10-27: `data/tickers.py` (`series()`, `select()`, `expand_template()`, `consensus_tickers()`, `singapore_consensus_tickers()`, with validation of roles, forms, frequencies, statuses and duplicates) plus 13 tests. Still to do: `collect_data.py` and a re-verification helper. Note: the registry currently holds 171 entries / **168** unique tickers (the P1.4 note says 164; recount when re-verifying). Original task: `data/tickers.py` loader: read the registry, expand consensus templates for a given year, and select series by `var`/`role`. `collect_data.py` pulls everything listed through `data/bloomberg.py`, so all pulls are cached. Re-verify the registry (resolve + span) after each data refresh and on every edit.
+  - US policy-rate consensus `ECPOUS {yy}` resolves but has no data for any year (found by the P1.6b re-verification; needed by P5.6, see Q8)
+- [x] **P1.6b** Done 2026-10-27.
+  - `data/tickers.py`: `series()`, `select()`, `expand_template()`, `consensus_tickers()`, `singapore_consensus_tickers()`, with validation of roles, forms, frequencies, statuses and duplicates.
+  - `data/collect_data.py` (`python tasks.py collect`): pulls every registry series at native frequency from 1980, one cached request per series, plus consensus tickers for the current and next year. It writes `manifest_YYYY-MM-DD.csv`, then re-verifies the registry (every ticker resolves; pulled spans vs registry `span`) into `verify_YYYY-MM-DD.csv`.
+  - First full run, 2026-10-27: 259 series (168 registry tickers + 88 consensus), 257 with data, all tickers resolve. The registry holds **168** unique tickers (the P1.4 note's 164 was a miscount). Five registry spans were too short and have been corrected (`SIIRPLRT`, `SIIRSADE`, `SIEXPNO`, `SIEXDOME`, `UKRPCJYR`). `ECPOUS 26/27` return no data — added to `known_gaps` and P1.6a.
+  - Original task: `data/tickers.py` loader: read the registry, expand consensus templates for a given year, and select series by `var`/`role`. `collect_data.py` pulls everything listed through `data/bloomberg.py`, so all pulls are cached. Re-verify the registry (resolve + span) after each data refresh and on every edit.
 
 ### 1C. Non-Bloomberg sources
 
@@ -417,6 +422,7 @@ Every run records the data vintage, config file hashes, git commit and random se
 | Q5 | CSI construction | P1.4 | Resolved → D3 |
 | Q6 | GPM7 bloc membership of EA7 / LA7 / RC7 | P3.7 | Research task (public IMF sources, per D1) — no user input needed |
 | Q7 | Does `blpapi` publish a Python 3.13 wheel? If not, revisit D4 | P0.2 | Resolved — 3.26.x ships `py3-none-win_amd64` wheels; installed and tested |
+| Q8 | Source for the expected US policy-rate path, since `ECPOUS {yy}` has no data: find the field that carries it, or use fed funds futures / OIS | P5.6 | Open — needs user decision |
 
 ---
 
@@ -448,4 +454,8 @@ Add one row per decision, newest at the bottom.
 | 2026-10-27 | P0.7 | Panel contract (`data/panel.py`): quarterly `PeriodIndex` named `quarter`; columns `LGDP, UNR, LCPI, RS, LS, CSI, YF, LCPIF, RR_US, RR_US_BAR, CAPREQ_BAR` in README units | The synthetic and real panels must be interchangeable; P1.13 must produce this shape |
 | 2026-10-27 | P0.3 | Config stubs created with planned shapes; `calibration.yaml` seeded with the README's assumed steady states (`RR_US_BAR_SS`, θ3, θ4 left null); `outputs/` ignored except `.gitkeep`; `notebooks/` and `docs/` deferred | Gives later tasks a fixed place to write to without inventing values |
 | 2026-10-27 | P1.6b | Registry flattening defaults: missing `role` → `primary`, missing `status` → `verified`, missing `field` → `meta.default_field`; foreign rows get `var` = `Y_{cc}` (GDP) / `LCPI_{cc}` (CPI), following `Y_US` / `LCPI_US` | Rows such as `SEMCUSA` carry no role while their `SEMCEU` sibling is marked `crosscheck`; one naming scheme for all country series |
+| 2026-10-27 | P1.6b | `collect_data.py` pulls at **native frequency** (daily / monthly / quarterly, calendar-aligned) from 1980; quarterly aggregation (averages for rates and indices, sums for flows) is left to P1.13 | User choice. Bloomberg's QUARTERLY periodicity returns end-of-quarter values, which are wrong for CPI, interest rates and trade flows |
+| 2026-10-27 | P1.6b | Consensus tickers pulled for the current and next calendar year only, sampled at month-ends; backtest history (2005+) deferred to P5B | User choice. About 90 tickers instead of about 1,000; keeps the pull well inside the Terminal's API data limits |
+| 2026-10-27 | P1.6b | One `bdh` request per (ticker, field, frequency), each with its own retry-protected session; trade rows default to monthly | Editing one registry entry re-pulls only that series; one bad ticker can't fail a batch; the registry's trade section is documented as all monthly |
+| 2026-10-27 | P1.6b | Re-verification rules: an unresolved ticker, failed/empty pull, changed start or earlier end is a problem; a later end is only reported. Five spans corrected in the registry after the first full run | The registry `span` must describe the data actually available; new data arriving is expected and not a problem |
 | 2026-10-27 | P1.1 | Session-drop retry: 3 attempts with 2 s then 4 s backoff, only for dropped/timed-out/unstartable sessions; never for security or field errors, service-open failures, synthetic-mode refusals, or caller-supplied sessions | Transient Terminal disconnects recover automatically; entitlement and ticker errors fail fast; a caller's session can't be reopened from inside the request function |
