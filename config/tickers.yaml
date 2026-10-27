@@ -1,0 +1,419 @@
+# =============================================================================
+# SMS replication — Bloomberg ticker registry
+# =============================================================================
+# Single source of truth for every Bloomberg series the project pulls
+# (IMPLEMENTATION_PLAN.md, P1.4–P1.6). Code must read tickers from here,
+# never hard-code them.
+#
+# Verified 2026-10-27 against the Terminal via data/bloomberg.py:
+#   - every ticker resolved with bdp(NAME)
+#   - every series ticker returned PX_LAST history with bdh(QUARTERLY)
+#   - `span` = first -> last quarter with data at that date (end-of-quarter
+#     sampling, so monthly series show their quarter-end month)
+# All verification pulls are cached under data/raw/bloomberg/ (git-ignored).
+#
+# Entry keys
+#   ticker  Bloomberg ticker, API form ("CODE Yellowkey")
+#   var     model variable / input it feeds (see README "Full Model Specification")
+#   role    primary    — the series used by default
+#           history    — older/longer series used to back-cast or splice the primary
+#           post       — successor series used after the primary ends
+#           crosscheck — alternative used only for validation (P1.12, P1.14)
+#           reference  — not a model input; kept for comparison/context
+#   freq    native frequency: D, M, Q
+#   sa      true = seasonally adjusted at source; false = NSA (adjust in P1.10)
+#   form    level | index | qoq | qoq_saar | yoy | rate  (how to transform, P1.13)
+#   span    verified data range
+#   field   Bloomberg field (default PX_LAST)
+#   status  verified (default) | check_units | gap (see `known_gaps` at bottom)
+#
+# Bloomberg licensing: tickers are fine to commit; pulled data is not.
+# =============================================================================
+
+meta:
+  verified_on: 2026-10-27
+  default_field: PX_LAST
+  blpapi_version: 3.26.9.1
+
+# -----------------------------------------------------------------------------
+# 1. Singapore — the six domestic observables
+# -----------------------------------------------------------------------------
+singapore:
+
+  gdp:   # -> LGDP = 100*ln(real GDP)
+    - {ticker: "SGDSTOTL Index", var: LGDP, role: primary,    freq: Q, sa: true,  form: level,    span: 1980Q1-2026Q2}  # Singapore real GDP, chained 2015 S$ million, SA level
+    - {ticker: "SGDSTOTQ Index", var: LGDP, role: crosscheck, freq: Q, sa: true,  form: qoq,      span: 1980Q1-2026Q3}  # Singapore real GDP SA, q/q % (includes advance estimate for the latest quarter)
+    - {ticker: "SGDPQOQ Index",  var: LGDP, role: crosscheck, freq: Q, sa: true,  form: qoq_saar, span: 1980Q1-2026Q2}  # Singapore real GDP, q/q % SAAR
+
+  cpi:   # -> LCPI = 100*ln(CPI); PIE = 4*dLCPI
+    - {ticker: "SICPISA Index",  var: LCPI, role: primary,    freq: M, sa: true,  form: index,    span: 1980Q1-2026Q3}  # Singapore CPI all items, SA (SingStat)
+    - {ticker: "SICPI Index",    var: LCPI, role: crosscheck, freq: M, sa: false, form: index,    span: 1980Q1-2026Q3}  # Singapore CPI all items, NSA
+    - {ticker: "5766639 Index",  var: LCPI, role: crosscheck, freq: M, sa: false, form: index,    span: 1980Q1-2026Q3}  # IMF IFS Singapore CPI (independent source check)
+    - {ticker: "SICPMAS Index",  var: none, role: reference,  freq: M, sa: false, form: index,    span: 1990Q1-2026Q3}  # MAS Core Inflation index (not in the SMS; for comparison charts only)
+
+  unemployment:   # -> UNR
+    - {ticker: "SIQUTOTA Index", var: UNR,  role: primary,    freq: Q, sa: true,  form: rate,     span: 1992Q1-2026Q2}  # Singapore overall unemployment rate, SA, % (MOM)
+    - {ticker: "SIQUTOTM Index", var: UNR,  role: crosscheck, freq: M, sa: true,  form: rate,     span: 2020Q2-2026Q3}  # Singapore overall unemployment rate, monthly SA, % (for the latest-quarter nowcast)
+    - {ticker: "SIUNTOTA Index", var: UNR,  role: history,    freq: Q, sa: true,  form: rate,     span: 1992Q1-2005Q2}  # Singapore overall unemployment rate SA, old (discontinued) series
+
+  interest_rate:   # -> RS, 3-month interbank rate, % p.a. Splice rule: P1.11
+    - {ticker: "SIBF3M Index",   var: RS,   role: primary,    freq: D, sa: false, form: rate,     span: 1999Q3-2024Q4}  # 3M SGD SIBOR fixing (ABS), discontinued after 31 Dec 2024
+    - {ticker: "SORACA3M Index", var: RS,   role: post,       freq: D, sa: false, form: rate,     span: 2005Q4-2026Q3}  # Compounded SORA, 3-month average (MAS) — successor to SIBOR
+    - {ticker: "5766586 Index",  var: RS,   role: history,    freq: M, sa: false, form: rate,     span: 1980Q1-2021Q3}  # IMF IFS Singapore interbank money-market rate — back-cast RS before 1999Q3
+    - {ticker: "XSORA3M Index",  var: RS,   role: crosscheck, freq: D, sa: false, form: rate,     span: 2017Q1-2026Q3}  # Bloomberg-calculated 3M compounded SORA (ISDA fallback basis)
+    - {ticker: "SIBCSORA Index", var: RS,   role: reference,  freq: D, sa: false, form: rate,     span: 2005Q3-2026Q3}  # SORA overnight rate
+    - {ticker: "5766R003 Index", var: RS,   role: reference,  freq: M, sa: false, form: rate,     span: 1980Q1-2013Q3}  # IMF IFS Singapore T-bill rate (discontinued)
+
+  neer:   # -> LS = 100*ln(S$NEER). Decision D2: BIS broad NEER
+    - {ticker: "NBISSING Index", var: LS,   role: primary,    freq: M, sa: false, form: index,    span: 1994Q1-2026Q3}  # BIS nominal effective exchange rate, broad basket, Singapore
+    - {ticker: "576.023 Index",  var: LS,   role: history,    freq: M, sa: false, form: index,    span: 1980Q1-2026Q2}  # IMF IFS Singapore NEER — back-cast before 1994 and cross-check
+    - {ticker: "SNEER Index",    var: LS,   role: crosscheck, freq: D, sa: false, form: index,    span: 1999Q1-2026Q3}  # Bloomberg S$NEER index (Jan 1999=100)
+    - {ticker: "GSSGSGD Index",  var: LS,   role: crosscheck, freq: D, sa: false, form: index,    span: 2001Q3-2026Q3}  # Goldman Sachs S$NEER estimate
+
+  # -> CSI. Decision D3: blend of z-scored loan–deposit spread and banks' NIM (P1.13a).
+  # MAS changed its bank-rate publications in 2021: the long series below stop
+  # in 2021Q2 and the weighted-average series start in 2021Q3.
+  csi_lending_rates:
+    - {ticker: "SPLRPRIM Index", var: CSI,  role: primary,    freq: M, sa: false, form: rate,     span: 1983Q1-2021Q2}  # Singapore prime lending rate (MAS, banks' average)
+    - {ticker: "5766615 Index",  var: CSI,  role: history,    freq: M, sa: false, form: rate,     span: 1980Q1-2021Q2}  # IMF IFS Singapore lending rate (back-cast 1980-82)
+    - {ticker: "SPLRHOUS Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 1983Q1-2022Q4}  # Singapore 15-year housing loan rate (consumer-loan proxy)
+    - {ticker: "SIIRPLRT Index", var: CSI,  role: reference,  freq: M, sa: false, form: rate,     span: 1992Q1-2003Q1}  # Singapore domestic prime lending rate (old series)
+    # post-2021 lending rate: NOT FOUND — see known_gaps.csi_lending_post_2021
+
+  csi_deposit_rates:
+    - {ticker: "SPLRFD3 Index",  var: CSI,  role: primary,    freq: M, sa: false, form: rate,     span: 1983Q1-2021Q2}  # Singapore banks' 3-month fixed deposit rate
+    - {ticker: "SPLRWFD3 Index", var: CSI,  role: post,       freq: M, sa: false, form: rate,     span: 2021Q3-2026Q2}  # Weighted average 3-month fixed deposit rate (< S$75k) — successor series
+    - {ticker: "5766601 Index",  var: CSI,  role: history,    freq: M, sa: false, form: rate,     span: 1980Q1-2021Q2}  # IMF IFS Singapore deposit rate (back-cast 1980-82)
+    - {ticker: "SIFDR3M Index",  var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 1982Q1-2021Q2}  # Singapore 3-month fixed deposit rate (alternative series)
+    - {ticker: "SIIRSADE Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 1992Q1-2021Q2}  # Singapore savings deposit rate
+    - {ticker: "SPLRWSDL Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 2021Q3-2026Q2}  # Weighted average savings deposit rate (< S$75k)
+
+  csi_net_interest_margin:   # field differs from PX_LAST; quarterly company fundamentals, %
+    - {ticker: "DBS SP Equity",  var: CSI,  role: primary,    freq: Q, sa: false, form: rate, field: T12_NET_INT_MARGIN,           span: 2003Q1-2026Q2}  # DBS Group net interest margin, trailing 12 months, %
+    - {ticker: "OCBC SP Equity", var: CSI,  role: primary,    freq: Q, sa: false, form: rate, field: T12_NET_INT_MARGIN,           span: 2003Q1-2026Q2}  # OCBC net interest margin, trailing 12 months, %
+    - {ticker: "UOB SP Equity",  var: CSI,  role: primary,    freq: Q, sa: false, form: rate, field: T12_NET_INT_MARGIN,           span: 2003Q1-2026Q2}  # UOB net interest margin, trailing 12 months, %
+    - {ticker: "DBS SP Equity",  var: CSI,  role: crosscheck, freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2003Q1-2026Q2}  # DBS NIM, company-reported basis
+    - {ticker: "OCBC SP Equity", var: CSI,  role: crosscheck, freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2007Q4-2026Q2}  # OCBC NIM, company-reported basis
+    - {ticker: "UOB SP Equity",  var: CSI,  role: crosscheck, freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2002Q3-2026Q2}  # UOB NIM, company-reported basis
+
+  # Forecast benchmarks for the backtest (P5.12–P5.20). Each target-year consensus
+  # ticker keeps its own history, so bdh on "ECGDSG 14 Index" returns the consensus
+  # for 2014 as it stood at each date (verified: 2012Q3 4.5% -> 2014Q4 3.0%). That
+  # makes it an information-matched benchmark at every forecast origin.
+  consensus:
+    - {template: "ECGDSG {yy} Index", var: none, role: reference}  # Bloomberg consensus, Singapore real GDP growth, calendar year {yy}, %
+    - {template: "ECPISG {yy} Index", var: none, role: reference}  # Bloomberg consensus, Singapore headline CPI inflation, calendar year {yy}, %
+    - {template: "ECCXSG {yy} Index", var: none, role: reference}  # Bloomberg consensus, Singapore core CPI inflation, calendar year {yy}, %
+
+  mas_spf:   # MAS Survey of Professional Forecasters, median, quarterly survey rounds (current-year forecasts)
+    - {ticker: "SGCFGDP Index",  var: none, role: reference, freq: Q, form: yoy,  span: 2004Q3-2026Q3}  # MAS SPF median forecast, Singapore real GDP growth, %
+    - {ticker: "SGCFCPI Index",  var: none, role: reference, freq: Q, form: yoy,  span: 2004Q3-2026Q3}  # MAS SPF median forecast, Singapore headline CPI inflation, %
+    - {ticker: "SGCFUNEM Index", var: none, role: reference, freq: Q, form: rate, span: 2004Q3-2026Q3}  # MAS SPF median forecast, unemployment rate SA, %
+    - {ticker: "SGCF3IBR Index", var: none, role: reference, freq: Q, form: rate, span: 2004Q3-2022Q3}  # MAS SPF median forecast, 3M interbank rate, % (survey item dropped after 2022Q3)
+
+# -----------------------------------------------------------------------------
+# 2. Singapore trade by partner — weights for YF (exports, omega_i) and LCPIF
+#    (imports, xi_i). P3.8. All monthly, S$ million, current prices, NSA.
+#    Use annual sums for weights, so seasonality doesn't matter.
+# -----------------------------------------------------------------------------
+trade:
+
+  nodx_by_partner:   # Non-oil domestic exports (preferred for omega_i: excludes low-value-added re-exports)
+    - {ticker: "SIEXTOUS Index", partner: US, role: primary,   span: 1980Q1-2026Q3}  # NODX to United States
+    - {ticker: "SIEXTOEU Index", partner: EU, role: primary,   span: 1980Q1-2026Q3}  # NODX to European Union (EU aggregate, not euro area)
+    - {ticker: "SIEXTOJN Index", partner: JA, role: primary,   span: 1980Q1-2026Q3}  # NODX to Japan
+    - {ticker: "SIEXTOCH Index", partner: CH, role: primary,   span: 1980Q1-2026Q3}  # NODX to China
+    - {ticker: "SIEXTOHK Index", partner: HK, role: primary,   span: 1980Q1-2026Q3}  # NODX to Hong Kong
+    - {ticker: "SIEXTOIJ Index", partner: ID, role: primary,   span: 1980Q1-2026Q3}  # NODX to Indonesia
+    - {ticker: "SIEXTOKO Index", partner: KR, role: primary,   span: 1980Q1-2026Q3}  # NODX to South Korea
+    - {ticker: "SIEXTOMA Index", partner: MY, role: primary,   span: 1980Q1-2026Q3}  # NODX to Malaysia
+    - {ticker: "SIEXTOTW Index", partner: TW, role: primary,   span: 1980Q1-2026Q3}  # NODX to Taiwan
+    - {ticker: "SIEXTOTH Index", partner: TH, role: primary,   span: 1980Q1-2026Q3}  # NODX to Thailand
+    - {ticker: "SIEXTOID Index", partner: IN, role: primary,   span: 1998Q4-2024Q4, status: gap}  # NODX to India — stops 2024Q4
+    - {ticker: "SIEXTOPH Index", partner: PH, role: primary,   span: 2001Q4-2002Q4, status: gap}  # NODX to Philippines — only 2001-02; unusable
+    - {ticker: "SIEXTOAU Index", partner: AU, role: primary,   span: 1998Q4-2005Q4, status: gap}  # NODX to Australia — stops 2005; unusable
+    - {ticker: "SIEXOTHC Index", partner: other, role: reference, span: 1998Q4-2024Q4}  # NODX to other countries
+    - {ticker: "SIEXPNO Index",  partner: total, role: reference, span: 1999Q1-2026Q2}  # Total NODX, current prices (denominator check)
+    - {ticker: "SIEXDOME Index", partner: total, role: reference, span: 2010Q1-2026Q2}  # Total domestic exports (oil + non-oil), current prices
+
+  total_exports_by_partner:   # Total exports incl. re-exports — robustness variant for omega_i, and fills NODX gaps
+    - {ticker: "SEMCUSA Index",  partner: US, span: 1980Q1-2026Q3}  # Exports to United States
+    - {ticker: "SEMCEZ Index",   partner: EU, span: 1999Q1-2026Q3}  # Exports to euro area (GPM7 'EU' bloc is the euro area)
+    - {ticker: "SEMCEU Index",   partner: EU, role: crosscheck, span: 1999Q1-2026Q3}  # Exports to European Union
+    - {ticker: "SEMCJAPN Index", partner: JA, span: 1980Q1-2026Q3}  # Exports to Japan
+    - {ticker: "SEMCCHNA Index", partner: CH, span: 1980Q1-2026Q3}  # Exports to China
+    - {ticker: "SEMCHK Index",   partner: HK, span: 1980Q1-2026Q3}  # Exports to Hong Kong
+    - {ticker: "SEMCINDI Index", partner: IN, span: 1980Q1-2026Q3}  # Exports to India
+    - {ticker: "SEMCINDO Index", partner: ID, span: 2003Q1-2026Q3}  # Exports to Indonesia (starts 2003)
+    - {ticker: "SEMCKREA Index", partner: KR, span: 1980Q1-2026Q3}  # Exports to South Korea
+    - {ticker: "SEMCMALY Index", partner: MY, span: 1980Q1-2026Q3}  # Exports to Malaysia
+    - {ticker: "SEMCPHIL Index", partner: PH, span: 1980Q1-2026Q3}  # Exports to Philippines
+    - {ticker: "SEMCTAIW Index", partner: TW, span: 1980Q1-2026Q3}  # Exports to Taiwan
+    - {ticker: "SEMCTHAI Index", partner: TH, span: 1980Q1-2026Q3}  # Exports to Thailand
+    - {ticker: "SEMCBRAZ Index", partner: BR, span: 1980Q1-2026Q3}  # Exports to Brazil
+    - {ticker: "SEMCMEXI Index", partner: MX, span: 1980Q1-2026Q3}  # Exports to Mexico
+    - {ticker: "SEMCCHIL Index", partner: CL, span: 1980Q1-2026Q3}  # Exports to Chile
+    - {ticker: "SEMCCOLO Index", partner: CO, span: 1980Q1-2026Q3}  # Exports to Colombia
+    - {ticker: "SEMCPERU Index", partner: PE, span: 1980Q1-2026Q3}  # Exports to Peru
+    - {ticker: "SEMCAUST Index", partner: AU, span: 1980Q1-2026Q3}  # Exports to Australia
+    - {ticker: "SEMCCANA Index", partner: CA, span: 1980Q1-2026Q3}  # Exports to Canada
+    - {ticker: "SEMCUK Index",   partner: GB, span: 1980Q1-2026Q3}  # Exports to United Kingdom
+
+  imports_by_partner:   # -> xi_i (import shares for LCPIF)
+    - {ticker: "SIMCUSA Index",  partner: US, span: 1980Q1-2026Q3}  # Imports from United States
+    - {ticker: "SIMCEZ Index",   partner: EU, span: 1999Q1-2026Q3}  # Imports from euro area
+    - {ticker: "SIMCEU Index",   partner: EU, role: crosscheck, span: 1999Q1-2026Q3}  # Imports from European Union
+    - {ticker: "SIMCJAPN Index", partner: JA, span: 1980Q1-2026Q3}  # Imports from Japan
+    - {ticker: "SIMCCHNA Index", partner: CH, span: 1980Q1-2026Q3}  # Imports from China
+    - {ticker: "SIMCHK Index",   partner: HK, span: 1980Q1-2026Q3}  # Imports from Hong Kong
+    - {ticker: "SIMCINDI Index", partner: IN, span: 1980Q1-2026Q3}  # Imports from India
+    - {ticker: "SIMCINDO Index", partner: ID, span: 2003Q1-2026Q3}  # Imports from Indonesia (starts 2003)
+    - {ticker: "SIMCKREA Index", partner: KR, span: 1980Q1-2026Q3}  # Imports from South Korea
+    - {ticker: "SIMCMALY Index", partner: MY, span: 1980Q1-2026Q3}  # Imports from Malaysia
+    - {ticker: "SIMCPHIL Index", partner: PH, span: 1980Q1-2026Q3}  # Imports from Philippines
+    - {ticker: "SIMCTAIW Index", partner: TW, span: 1980Q1-2026Q3}  # Imports from Taiwan
+    - {ticker: "SIMCTHAI Index", partner: TH, span: 1980Q1-2026Q3}  # Imports from Thailand
+    - {ticker: "SIMCBRAZ Index", partner: BR, span: 1980Q1-2026Q3}  # Imports from Brazil
+    - {ticker: "SIMCMEXI Index", partner: MX, span: 1980Q1-2026Q3}  # Imports from Mexico
+    - {ticker: "SIMCCHIL Index", partner: CL, span: 1980Q1-2026Q3}  # Imports from Chile
+    - {ticker: "SIMCCOLO Index", partner: CO, span: 1980Q1-2026Q3}  # Imports from Colombia
+    - {ticker: "SIMCPERU Index", partner: PE, span: 1980Q1-2026Q3}  # Imports from Peru
+    - {ticker: "SIMCAUST Index", partner: AU, span: 1980Q1-2026Q3}  # Imports from Australia
+    - {ticker: "SIMCCANA Index", partner: CA, span: 1980Q1-2026Q3}  # Imports from Canada
+    - {ticker: "SIMCUK Index",   partner: GB, span: 1980Q1-2026Q3}  # Imports from United Kingdom
+
+# -----------------------------------------------------------------------------
+# 3. United States — RR_US, RR_US_BAR and the US bloc
+# -----------------------------------------------------------------------------
+united_states:
+  - {ticker: "GDP CHWG Index", var: Y_US,      role: primary,    freq: Q, sa: true,  form: level, span: 1980Q1-2026Q2}  # US real GDP, chained $bn, SAAR level
+  - {ticker: "CPI INDX Index", var: LCPI_US,   role: primary,    freq: M, sa: true,  form: index, span: 1980Q1-2026Q3}  # US CPI-U all items, SA
+  - {ticker: "CPURNSA Index",  var: LCPI_US,   role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # US CPI-U all items, NSA
+  - {ticker: "1116639 Index",  var: LCPI_US,   role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS US CPI
+  - {ticker: "USGG3M Index",   var: RR_US,     role: primary,    freq: D, sa: false, form: rate,  span: 1980Q1-2026Q3}  # US generic 3-month T-bill yield, % (nominal leg of RR_US)
+  - {ticker: "FDTR Index",     var: RR_US,     role: crosscheck, freq: D, sa: false, form: rate,  span: 1980Q1-2026Q3}  # Fed funds target rate, upper bound, %
+  - {ticker: "CONSPXMD Index", var: RR_US,     role: primary,    freq: M, sa: false, form: rate,  span: 1980Q1-2026Q3}  # UMich expected price change next 12m, median, % (expected-inflation leg of RR_US)
+  - {ticker: "CIEFMICH Index", var: RR_US,     role: crosscheck, freq: Q, sa: false, form: rate,  span: 1999Q1-2026Q3}  # Fed Common Inflation Expectations index (Michigan variant)
+  - {ticker: "USNRUS Index",   var: RR_US_BAR, role: primary,    freq: Q, sa: false, form: rate,  span: 1980Q1-2026Q2}  # Holston-Laubach-Williams US natural rate of interest (r*), % — replaces the NY Fed download in P1.9
+
+# -----------------------------------------------------------------------------
+# 4. Foreign blocs — real GDP (-> bloc output gaps Y_i -> YF) and CPI (-> LCPIF)
+#    Bloc assignment is PROVISIONAL until P3.7 confirms GPM7 membership.
+#    EA7 lists 8 candidates; one will drop out.
+#    CPI primary = IMF IFS "{IFS code}6639 Index" (one consistent, long series
+#    per country), except where IFS has no series (euro area, China, Taiwan).
+#    National CPI tickers are kept as cross-checks / for the latest months,
+#    since IFS lags by a quarter for some countries.
+# -----------------------------------------------------------------------------
+foreign:
+
+  US:   # bloc US — series in `united_states` above
+    bloc: US
+
+  EZ:
+    bloc: EU
+    gdp:
+      - {ticker: "EUGNEMU Index",  role: primary,    freq: Q, sa: true,  form: level, span: 1995Q1-2026Q2}  # Euro area real GDP, chained 2020 prices, level
+    cpi:
+      - {ticker: "CPALEMU Index",  role: primary,    freq: M, sa: false, form: index, span: 1996Q1-2026Q3}  # Euro area HICP (MUICP) all items, NSA — no IFS series for the euro area
+
+  JP:
+    bloc: JA
+    gdp:
+      - {ticker: "JGDPGDP Index",  role: primary,    freq: Q, sa: true,  form: level, span: 1994Q1-2026Q2}  # Japan real GDP, chained, SA, level
+    cpi:
+      - {ticker: "1586639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS Japan CPI
+      - {ticker: "JC20GEN Index",  role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # Japan CPI nationwide general, 2020=100
+
+  CN:
+    bloc: CH
+    gdp:
+      - {ticker: "CNGDPQOQ Index", role: primary,    freq: Q, sa: true,  form: qoq,   span: 2011Q1-2026Q3}  # China real GDP, q/q % SA — chain into a level index
+      - {ticker: "CNGDPYOY Index", role: history,    freq: Q, sa: false, form: yoy,   span: 1992Q1-2026Q3}  # China real GDP, y/y % — back-cast before 2011
+      - {ticker: "CNGDGDP Index",  role: crosscheck, freq: Q, sa: false, form: level, span: 2007Q1-2026Q3}  # China GDP at constant prices, NSA level
+    cpi:
+      - {ticker: "CNCPIMOM Index", role: primary,    freq: M, sa: false, form: qoq,   span: 2001Q1-2026Q3}  # China CPI m/m % — chain into an index (no IFS series for China)
+      - {ticker: "CNCPIYOY Index", role: history,    freq: M, sa: false, form: yoy,   span: 1987Q1-2026Q3}  # China CPI y/y % — back-cast before 2001
+
+  HK:
+    bloc: EA7
+    gdp:
+      - {ticker: "HKGDQOQ Index",  role: primary,    freq: Q, sa: true,  form: qoq,   span: 1990Q1-2026Q2}  # Hong Kong real GDP (chain volume), q/q % SA — chain into a level
+      - {ticker: "5329R002 Index", role: history,    freq: Q, sa: false, form: level, span: 1980Q1-2017Q1}  # IMF Hong Kong real GDP, chained volume (back-cast before 1990)
+    cpi:
+      - {ticker: "5326639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q4-2026Q2}  # IMF IFS Hong Kong CPI
+      - {ticker: "HKCPI Index",    role: crosscheck, freq: M, sa: false, form: index, span: 1980Q4-2026Q3}  # Hong Kong composite CPI
+
+  IN:
+    bloc: EA7
+    gdp:
+      - {ticker: "INBGGDRQ Index", role: primary,    freq: Q, sa: false, form: level, span: 1996Q2-2026Q2}  # India real GDP, quarterly, NSA level — seasonally adjust (India publishes no SA series)
+    cpi:
+      - {ticker: "5346639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS India CPI
+      - {ticker: "INFUTOT Index",  role: crosscheck, freq: M, sa: false, form: index, span: 2013Q1-2026Q3}  # India CPI combined (all-India)
+
+  ID:
+    bloc: EA7
+    gdp:
+      - {ticker: "IDGDPY Index",   role: primary,    freq: Q, sa: false, form: yoy,   span: 2001Q1-2026Q2}  # Indonesia real GDP, y/y % — no SA level on Bloomberg; see known_gaps
+      - {ticker: "IDGDQY Index",   role: crosscheck, freq: Q, sa: false, form: qoq,   span: 2008Q2-2026Q2}  # Indonesia real GDP, q/q % NSA
+    cpi:
+      - {ticker: "5366639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS Indonesia CPI
+      - {ticker: "IDCPIY Index",   role: crosscheck, freq: M, sa: false, form: yoy,   span: 1999Q1-2026Q3}  # Indonesia CPI y/y %
+
+  KR:
+    bloc: EA7
+    gdp:
+      - {ticker: "KOGDSTOT Index", role: primary,    freq: Q, sa: true,  form: level, span: 1980Q1-2026Q3}  # South Korea real GDP, constant prices, SA level
+    cpi:
+      - {ticker: "5426639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS South Korea CPI
+      - {ticker: "KOCPI Index",    role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # South Korea CPI
+
+  MY:
+    bloc: EA7
+    gdp:
+      - {ticker: "MAGSEXGD Index", role: primary,    freq: Q, sa: true,  form: level, span: 2010Q1-2026Q2}  # Malaysia real GDP (expenditure), constant prices, SA level
+      - {ticker: "MAGDHIY Index",  role: history,    freq: Q, sa: false, form: yoy,   span: 2001Q1-2026Q3}  # Malaysia real GDP, y/y % — back-cast before 2010
+      - {ticker: "MAGDHI Index",   role: crosscheck, freq: Q, sa: false, form: level, span: 2010Q1-2026Q2}  # Malaysia real GDP, constant prices, NSA level
+    cpi:
+      - {ticker: "5486639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS Malaysia CPI
+      - {ticker: "MACPI Index",    role: crosscheck, freq: M, sa: false, form: index, span: 2010Q1-2026Q3}  # Malaysia CPI, 2010=100
+
+  PH:
+    bloc: EA7
+    gdp:
+      - {ticker: "PHNAGDP Index",  role: primary,    freq: Q, sa: true,  form: qoq,   span: 1998Q1-2026Q2, status: check_units}  # Philippines national accounts real GDP — appears to be q/q % SA; confirm with DES
+      - {ticker: "PHGDPYOY Index", role: history,    freq: Q, sa: false, form: yoy,   span: 1982Q1-2026Q2}  # Philippines real GDP, y/y % — back-cast
+      - {ticker: "PHGDP00 Index",  role: crosscheck, freq: Q, sa: false, form: level, span: 1981Q1-2019Q4}  # Philippines real GDP, constant 2000 prices, NSA level (discontinued)
+    cpi:
+      - {ticker: "5666639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS Philippines CPI
+      - {ticker: "PHC2II Index",   role: crosscheck, freq: M, sa: false, form: yoy,   span: 1980Q1-2026Q3}  # Philippines CPI y/y %, 2018=100
+
+  TW:
+    bloc: EA7
+    gdp:
+      - {ticker: "TWRGSAAR Index", role: primary,    freq: Q, sa: true,  form: qoq_saar, span: 1981Q2-2026Q2}  # Taiwan real GDP, q/q % SAAR — chain into a level
+    cpi:
+      - {ticker: "TWCPI Index",    role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # Taiwan CPI, NSA (Taiwan is not in IMF IFS)
+
+  TH:
+    bloc: EA7
+    gdp:
+      - {ticker: "THG PQSA Index", role: primary,    freq: Q, sa: true,  form: level, span: 1993Q1-2026Q2}  # Thailand real GDP, chain value measures, SA level
+    cpi:
+      - {ticker: "5786639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS Thailand CPI
+      - {ticker: "THCPI Index",    role: crosscheck, freq: M, sa: false, form: index, span: 2008Q1-2026Q3}  # Thailand CPI all items
+
+  BR:
+    bloc: LA7
+    gdp:
+      - {ticker: "BZGDQOQ Index",  role: primary,    freq: Q, sa: true,  form: index, span: 1996Q1-2026Q2}  # Brazil real GDP index, SA, 1995=100
+    cpi:
+      - {ticker: "2236639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS Brazil CPI
+      - {ticker: "BZPIIPCA Index", role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # Brazil IPCA index, Dec 1993=100
+
+  MX:
+    bloc: LA7
+    gdp:
+      - {ticker: "MXGPLEVL Index", role: primary,    freq: Q, sa: true,  form: level, span: 1980Q1-2026Q2}  # Mexico real GDP, SA level, MXN million
+    cpi:
+      - {ticker: "2736639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS Mexico CPI
+      - {ticker: "MXCPI Index",    role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # Mexico CPI (INPC)
+
+  CL:
+    bloc: LA7
+    gdp:
+      - {ticker: "CLGDPSA Index",  role: primary,    freq: Q, sa: true,  form: level, span: 1996Q1-2026Q2}  # Chile real GDP, chained pesos, SA level
+    cpi:
+      - {ticker: "2286639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS Chile CPI
+      - {ticker: "CLINNSAI Index", role: crosscheck, freq: M, sa: false, form: index, span: 2009Q4-2026Q3}  # Chile CPI, linked series
+
+  CO:
+    bloc: LA7
+    gdp:
+      - {ticker: "COCIPIB Index",  role: primary,    freq: Q, sa: true,  form: level, span: 2005Q1-2026Q2}  # Colombia real GDP, constant prices, SA level
+    cpi:
+      - {ticker: "2336639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS Colombia CPI
+      - {ticker: "COPNI Index",    role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2018Q4}  # Colombia CPI (DANE), discontinued 2018
+
+  PE:
+    bloc: LA7
+    gdp:
+      - {ticker: "PRGSA Index",    role: primary,    freq: Q, sa: true,  form: index, span: 2003Q1-2026Q3}  # Peru real GDP index, SA, 2007=100
+    cpi:
+      - {ticker: "2936639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS Peru CPI
+      - {ticker: "PRCPALLY Index", role: crosscheck, freq: M, sa: false, form: yoy,   span: 2018Q3-2026Q3}  # Peru CPI all items y/y %
+
+  AU:
+    bloc: RC7
+    gdp:
+      - {ticker: "AUNAGDP Index",  role: primary,    freq: Q, sa: true,  form: level, span: 1980Q1-2026Q2}  # Australia real GDP, SA level, A$ million
+    cpi:
+      - {ticker: "1936639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS Australia CPI
+      - {ticker: "AUCPI Index",    role: crosscheck, freq: Q, sa: false, form: index, span: 1980Q1-2026Q2}  # Australia CPI all groups (quarterly)
+
+  CA:
+    bloc: RC7
+    gdp:
+      - {ticker: "CGE9ANN Index",  role: primary,    freq: Q, sa: true,  form: level, span: 1980Q1-2026Q2, status: check_units}  # Canada real GDP (expenditure), chained 2017 prices SAAR — latest value 3.316 looks like a growth rate, not a level; confirm with DES
+    cpi:
+      - {ticker: "1566639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS Canada CPI
+      - {ticker: "CACPI Index",    role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # Canada CPI, NSA
+
+  GB:
+    bloc: RC7
+    gdp:
+      - {ticker: "UKGRABMI Index", role: primary,    freq: Q, sa: true,  form: level, span: 1980Q1-2026Q2}  # UK real GDP, chained volume measure (ONS ABMI), SA level, £ million
+      - {ticker: "UKGRABIQ Index", role: crosscheck, freq: Q, sa: true,  form: qoq,   span: 1980Q1-2026Q2}  # UK real GDP, q/q %
+    cpi:
+      - {ticker: "1126639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS UK CPI
+      - {ticker: "UKRPCJYR Index", role: crosscheck, freq: M, sa: false, form: yoy,   span: 1989Q1-2026Q3}  # UK CPI y/y %, NSA
+
+# -----------------------------------------------------------------------------
+# 5. Bloomberg economist consensus forecasts (ECFC) — foreign outlook for
+#    conditional forecasts (decision D6, P5.6). Tickers roll with the year:
+#    replace {yy} with a two-digit calendar year (e.g. "ECGDUS 26 Index").
+#    Verified for {yy}=26. Quarterly variants exist for some countries as
+#    "ECGQ{cc} Q{q}{yy} Index"; verify per country before relying on them.
+#    Note Bloomberg country codes here: JP (not JN), TW (not TA), BR (not BZ),
+#    GB (not UK).
+# -----------------------------------------------------------------------------
+consensus:
+  templates:
+    gdp:          "ECGD{cc} {yy} Index"   # consensus real GDP growth, calendar-year average, %
+    cpi:          "ECPI{cc} {yy} Index"   # consensus CPI inflation, calendar-year average, %
+    policy_rate:  "ECPO{cc} {yy} Index"   # consensus policy rate, year-end median, % (verified for US only)
+  countries: [US, EU, JP, CN, HK, IN, ID, KR, MY, PH, TW, TH, BR, MX, CL, CO, PE, AU, CA, GB, SG]   # all verified for GDP and CPI
+  policy_rate_countries: [US]   # ECPOEU / ECPOJN / ECPOCN / ECPOSG do not exist
+
+# -----------------------------------------------------------------------------
+# 6. Known gaps and checks — resolve during P1.4–P1.14
+# -----------------------------------------------------------------------------
+known_gaps:
+  csi_lending_post_2021: >-
+    No Singapore lending-rate series found after 2021Q2 (prime lending rate and
+    IMF lending rate both stop; the housing-loan rate stops 2022Q4). Deposit
+    rates continue via the SPLRW* weighted-average series. Options: search the
+    Terminal for MAS's post-2021 lending-rate tables (ECST <GO> Singapore >
+    Interest rates); use the MAS website statistics as a non-Bloomberg source;
+    or rely on the NIM component alone after 2021.
+  nim_start: >-
+    Bank NIM data start 2002-03, so the CSI blend (D3) is spread-only before
+    2003. Record how the blend is handled pre-2003 in P1.13a.
+  nodx_partner_breaks: >-
+    NODX to India stops 2024Q4; NODX to the Philippines and Australia have
+    almost no history. Use total exports (SEMC*) for those partners, or
+    re-weight NODX shares over available partners.
+  indonesia_gdp_level: >-
+    No SA real GDP level for Indonesia on Bloomberg. Build an NSA level from
+    y/y growth and an anchor year, then seasonally adjust (P1.10).
+  units_to_confirm: >-
+    CGE9ANN (Canada) and PHNAGDP (Philippines) need DES <GO> checks: their
+    latest values look like growth rates rather than levels.
+  sibor_rs_backcast: >-
+    SIBOR starts 1999Q3. RS before then uses the IMF interbank money-market
+    rate (5766586), which may be an overnight rather than a 3-month rate;
+    check the definition and level difference over the 1999-2021 overlap.
+  bloc_membership: >-
+    Countries are assigned to blocs provisionally. Confirm GPM7 EA7/LA7/RC7
+    membership in P3.7 and update the `bloc` keys.

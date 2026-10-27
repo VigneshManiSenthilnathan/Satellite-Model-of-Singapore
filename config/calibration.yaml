@@ -1,0 +1,23 @@
+# =============================================================================
+# SMS replication — calibrated steady states (README "Calibrated Parameters")
+# =============================================================================
+# The source documents give no values for these. The defaults below are the
+# README's replication assumptions; P3.5 replaces them with data-based values.
+# Units: % p.a. for rates and growth, % for unemployment.
+#
+# Steady-state consistency: DOT_LS_BAR_ss = dot_lz_ss + PIETARF_SS - PIETAR_SS
+# =============================================================================
+
+steady_state:
+  growth_ss: 2.5      # long-run potential growth
+  unr_ss: 3.0         # NAIRU
+  rr_bar_ss: 1.5      # equilibrium real interest rate
+  dot_lz_ss: 0.0      # trend REER appreciation
+  PIETAR_SS: 2.0      # domestic inflation anchor
+  PIETARF_SS: 2.0     # foreign inflation target
+  RR_US_BAR_SS: null  # US equilibrium real rate — must be set (P3.5); rr_bar_ss - RR_US_BAR_SS is the risk premium in eq (18)
+
+# theta3, theta4 (eq 15): calibrated to the prevailing Tier-1 requirement (P1.7)
+capital:
+  theta3: null
+  theta4: null

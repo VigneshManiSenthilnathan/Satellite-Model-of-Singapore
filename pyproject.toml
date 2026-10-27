@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sms-replication"
+version = "0.1.0"
+description = "Python replication of the MAS Satellite Model of Singapore (SMS)"
+readme = "README.md"
+requires-python = ">=3.13"
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+fast = ["numba==0.68.0"]   # Kalman filter speed-up (P2.7)
+pdf = ["pymupdf==2.0"]     # vector chart extraction from the MAS PDF (P3.1)
+
+[tool.setuptools]
+packages = ["data", "model", "estimation", "analysis", "backtest", "report"]
+py-modules = ["run_sms", "tasks"]
+
+[tool.setuptools.dynamic]
+# requirements.txt is the single list of exact pins (P0.2).
+dependencies = { file = ["requirements.txt"] }
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+extend-exclude = ["data/raw", "data/processed", "data/foreign", "outputs"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, bugbear, pyupgrade, numpy-specific rules
+select = ["E", "W", "F", "I", "B", "UP", "NPY"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["data", "model", "estimation", "analysis", "backtest", "report", "run_sms", "tasks"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "bloomberg: needs a logged-in Bloomberg Terminal (skipped in synthetic mode)",
+]

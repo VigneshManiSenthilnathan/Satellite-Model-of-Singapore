@@ -1,0 +1,16 @@
+# =============================================================================
+# SMS replication — GPM7 bloc membership (IMPLEMENTATION_PLAN.md, P3.7)
+# =============================================================================
+# Public sources only (decision D1): Carabenciov et al. (2013) and the IMF GPM
+# papers. Record the source for each bloc. Singapore is excluded from its own
+# foreign aggregate.
+#
+# Until P3.7 is done, the provisional assignment is the `bloc` key of each
+# country in config/tickers.yaml (section 4).
+#
+# Planned shape:
+#   blocs:
+#     EA7: {members: [HK, IN, ID, KR, MY, PH, TW, TH], source: "..."}
+# =============================================================================
+
+blocs: {}

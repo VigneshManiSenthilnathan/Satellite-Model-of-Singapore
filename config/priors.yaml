@@ -1,0 +1,13 @@
+# =============================================================================
+# SMS replication — prior distributions (IMPLEMENTATION_PLAN.md, P3.13 / P3.15)
+# =============================================================================
+# One entry per parameter and shock standard deviation. A `source` is required
+# for every entry: IRF matching (P3.10), a literature reference (P3.13) or a
+# single-equation estimate (P3.14).
+#
+# Planned shape:
+#   params:
+#     beta1: {dist: beta, mean: 0.7, sd: 0.1, source: "..."}
+# =============================================================================
+
+params: {}

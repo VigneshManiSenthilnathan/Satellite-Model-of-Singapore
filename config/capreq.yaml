@@ -1,0 +1,13 @@
+# =============================================================================
+# SMS replication — Tier-1 capital requirement timeline (IMPLEMENTATION_PLAN.md, P1.7)
+# =============================================================================
+# Hand-coded step function of the regulatory minimum Tier-1 capital ratio
+# (CAPREQ_BAR) from MAS Notice 637 and its earlier versions, including the
+# Basel III phase-in dates. Cite the notice version for each step.
+#
+# Planned shape:
+#   steps:
+#     - {from: 2013-01-01, tier1_min: 6.5, source: "MAS Notice 637 (2012), ..."}
+# =============================================================================
+
+steps: []
