@@ -11,10 +11,15 @@ Source documents (in `resources/`):
 > 2. *MAS (2011). "An Overview of the Satellite Model of Singapore." Macroeconomic Review, Vol. X(2), Special Feature A.*
 >    `resources/Overview of SMS.pdf` — non-technical overview, earlier (GPM6-era) simulation results
 
-> **Status:** Phase 0 (environment and skeleton) is complete. Built so far:
-> the Bloomberg wrapper and cache (`data/bloomberg.py`), the ticker registry and
-> its loader (`config/tickers.yaml`, `data/tickers.py`), a synthetic-data mode,
-> and a `run_sms.py` runner whose model steps are still stubs. The model,
+> **Status:** Phase 0 is complete and Phase 1 (data layer) is in progress. Built
+> so far: the Bloomberg wrapper and cache (`data/bloomberg.py`), the ticker
+> registry and its loader (`config/tickers.yaml`, `data/tickers.py`), data
+> collection, the SingStat cross-check, the capital-requirement timeline,
+> seasonal adjustment, the RS splice, the S$NEER validation, a synthetic-data
+> mode, the model-ready panel (`data/process_data.py`, 1980Q1–2026Q3) with its
+> lineage table and data QA report (`data/qa_report.py`), and a `run_sms.py`
+> runner whose model steps are still stubs. Phase 1 is complete apart from the
+> NODX partner gaps (handled with the trade weights in Phase 3). The model,
 > estimation and analysis packages are empty. Progress is tracked in
 > [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
@@ -257,7 +262,13 @@ Satellite-Model-of-Singapore/
 │   ├── panel.py                # ✓ panel columns, load_panel(), synthetic-mode switch
 │   ├── synthetic.py            # ✓ seeded synthetic panel (no Bloomberg needed)
 │   ├── collect_data.py         # ✓ Pull every registry series through bloomberg.py + re-verify registry
-│   ├── process_data.py         # Transformations → model-ready variables
+│   ├── singstat.py             # ✓ SingStat Table Builder client + cross-check vs Bloomberg
+│   ├── capreq.py               # ✓ Quarterly CAPREQ_BAR from config/capreq.yaml
+│   ├── seasonal.py             # ✓ X-13ARIMA-SEATS / STL seasonal adjustment
+│   ├── transform.py            # ✓ Quarterly aggregation, splices, RS (SIBOR/SORA/IMF)
+│   ├── neer_check.py           # ✓ S$NEER proxy validation vs MAS policy episodes
+│   ├── process_data.py         # ✓ Transformations → model-ready panel + lineage (outputs/lineage.csv)
+│   ├── qa_report.py            # ✓ Data QA report → outputs/data_qa.html
 │   ├── raw/                    # Downloaded raw data files       (git-ignored)
 │   ├── processed/              # Transformed quarterly panel     (git-ignored)
 │   └── foreign/                # GPM7 bloc data                  (git-ignored)
@@ -359,6 +370,13 @@ listens on `localhost:8194`). Check the connection with
 `python -m data.check_bloomberg`. Without a Terminal, use the synthetic-data
 mode (`--synthetic` or `SMS_SYNTHETIC=1`); it needs no `blpapi`.
 
+**Seasonal adjustment (X-13ARIMA-SEATS).** Download the Windows build from the
+US Census Bureau
+(`https://www2.census.gov/software/x-13arima-seats/x13as/windows/program-archives/x13as_ascii-v1-1-b62.zip`),
+and save `x13as_ascii.exe` from the archive as `tools/x13as/x13as.exe` (the
+`tools/` folder is git-ignored), or point the `X13PATH` environment variable at
+it. Without it, seasonal adjustment falls back to STL.
+
 Optional extras (declared in `pyproject.toml`): `pip install -e ".[fast]"`
 (`numba`, for the Kalman filter) and `pip install -e ".[pdf]"` (`pymupdf`, for
 chart extraction in P3.1).
@@ -377,6 +395,9 @@ Developer tasks (plain Python, no `make` needed):
 python tasks.py test                # pytest, in synthetic mode
 python tasks.py lint                # ruff check
 python tasks.py bloomberg           # Bloomberg connectivity check
+python tasks.py collect             # pull every registry series into the cache + re-verify
+python tasks.py process             # build data/processed/panel.parquet from the cache
+python tasks.py qa                  # data QA report -> outputs/data_qa.html
 SMS_SYNTHETIC=0 python -m pytest -m bloomberg   # live Bloomberg tests, on a Terminal machine
 ```
 
