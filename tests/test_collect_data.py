@@ -41,7 +41,7 @@ def test_real_registry_pull_list():
 
 
 def _fake_bdh(data):
-    def bdh(ticker, field, start, periodicity, periodicityAdjustment, refresh):
+    def bdh(ticker, field, start, periodicity, periodicityAdjustment, refresh, vintage):
         result = data[ticker]
         if isinstance(result, Exception):
             raise result

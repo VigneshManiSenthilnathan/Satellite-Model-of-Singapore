@@ -13,10 +13,17 @@ change to the request is a cache miss. A cache hit returns the most recent
 vintage holding that key. Requests with ``end=None`` resolve to today's date,
 so open-ended history pulls refresh at most once a day.
 
+Vintages (P1.3): pass ``vintage="YYYY-MM-DD"`` to bdh/bdp to read the data as
+it stood on that date -- the newest cached copy at or before that vintage,
+with ``end=None`` meaning the vintage date. Vintage reads are cache-only: they
+never call Bloomberg and raise FileNotFoundError if the data was not pulled.
+``list_vintages()`` lists the dates available.
+
 Usage:
     from data.bloomberg import bdh, bdp
     df = bdh(["USGG3M Index"], ["PX_LAST"], "2000-01-01", periodicity="QUARTERLY")
     ref = bdp(["USGG3M Index"], ["NAME", "SECURITY_DES"])
+    old = bdh(["USGG3M Index"], ["PX_LAST"], "2000-01-01", periodicity="QUARTERLY", vintage="2026-10-27")
 """
 
 import datetime as dt
@@ -78,9 +85,31 @@ def _request_key(spec):
     return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
 
-def _cache_lookup(kind, key):
+def _vintage_str(value):
+    return pd.Timestamp(value).date().isoformat()
+
+
+def _cache_lookup(kind, key, as_of=None):
+    """Newest cached file for this request, optionally restricted to vintages <= as_of."""
     hits = sorted(CACHE_DIR.glob(f"vintage=*/{kind}_{key}.parquet"))
+    if as_of is not None:
+        # Folder names are vintage=YYYY-MM-DD, so string order is date order.
+        hits = [h for h in hits if h.parent.name <= f"vintage={_vintage_str(as_of)}"]
     return hits[-1] if hits else None
+
+
+def _vintage_read(kind, key, vintage, spec):
+    path = _cache_lookup(kind, key, as_of=vintage)
+    if path is None:
+        raise FileNotFoundError(
+            f"No cached {kind} data at or before vintage {_vintage_str(vintage)} for request {spec}"
+        )
+    return _cache_read(path)
+
+
+def list_vintages():
+    """Vintage dates present in the cache, oldest first (as 'YYYY-MM-DD' strings)."""
+    return sorted(p.name.removeprefix("vintage=") for p in CACHE_DIR.glob("vintage=*") if p.is_dir())
 
 
 def _normalise(df):
@@ -231,27 +260,37 @@ def _with_session(pull, session):
 
 # --------------------------------------------------------------------------- requests
 
-def bdh(tickers, fields, start, end=None, periodicity="DAILY", overrides=None,
-        refresh=False, session=None, **options):
-    """Historical data. Returns a long DataFrame: date, ticker, field, value.
-
-    Extra keyword options are passed to HistoricalDataRequest (see HISTORICAL_OPTIONS).
-    """
-    tickers = [tickers] if isinstance(tickers, str) else list(tickers)
-    fields = [fields] if isinstance(fields, str) else list(fields)
+def _bdh_spec(tickers, fields, start, end, periodicity, overrides, vintage, options):
+    """The cache-key request spec for bdh. With a vintage, end=None means the vintage date."""
     unknown = set(options) - HISTORICAL_OPTIONS
     if unknown:
         raise ValueError(f"Unknown HistoricalDataRequest options: {sorted(unknown)}")
-    options = {"periodicitySelection": periodicity, **options}
-    spec = {
+    return {
         "tickers": sorted(tickers),
         "fields": sorted(fields),
         "start": _date_str(start),
-        "end": _date_str(end),
-        "options": options,
+        "end": _date_str(end if end is not None or vintage is None else vintage),
+        "options": {"periodicitySelection": periodicity, **options},
         "overrides": overrides or {},
     }
+
+
+def bdh(tickers, fields, start, end=None, periodicity="DAILY", overrides=None,
+        refresh=False, session=None, vintage=None, **options):
+    """Historical data. Returns a long DataFrame: date, ticker, field, value.
+
+    Extra keyword options are passed to HistoricalDataRequest (see HISTORICAL_OPTIONS).
+    vintage="YYYY-MM-DD" reads that vintage from the cache only (see module docstring).
+    """
+    tickers = [tickers] if isinstance(tickers, str) else list(tickers)
+    fields = [fields] if isinstance(fields, str) else list(fields)
+    if vintage is not None and refresh:
+        raise ValueError("vintage reads are cache-only; refresh=True can't be combined with vintage")
+    spec = _bdh_spec(tickers, fields, start, end, periodicity, overrides, vintage, options)
+    options = spec["options"]
     key = _request_key(spec)
+    if vintage is not None:
+        return _vintage_read("bdh", key, vintage, spec)
     cached = None if refresh else _cache_lookup("bdh", key)
     if cached is not None:
         return _cache_read(cached)
@@ -299,16 +338,21 @@ def bdh(tickers, fields, start, end=None, periodicity="DAILY", overrides=None,
     return df
 
 
-def bdp(tickers, fields, overrides=None, refresh=False, session=None):
+def bdp(tickers, fields, overrides=None, refresh=False, session=None, vintage=None):
     """Reference data. Returns a long DataFrame: ticker, field, value.
 
     Reference data is cached by request only (no date in the key), so pass
     refresh=True to re-pull fields that change over time.
+    vintage="YYYY-MM-DD" reads that vintage from the cache only.
     """
     tickers = [tickers] if isinstance(tickers, str) else list(tickers)
     fields = [fields] if isinstance(fields, str) else list(fields)
+    if vintage is not None and refresh:
+        raise ValueError("vintage reads are cache-only; refresh=True can't be combined with vintage")
     spec = {"tickers": sorted(tickers), "fields": sorted(fields), "overrides": overrides or {}}
     key = _request_key(spec)
+    if vintage is not None:
+        return _vintage_read("bdp", key, vintage, spec)
     cached = None if refresh else _cache_lookup("bdp", key)
     if cached is not None:
         return _cache_read(cached)

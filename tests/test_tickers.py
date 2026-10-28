@@ -32,7 +32,7 @@ def test_defaults_filled():
     nim = select(group="csi_net_interest_margin", role="primary")
     assert set(nim["field"]) == {"T12_NET_INT_MARGIN"}
     assert select(group="total_exports_by_partner", country="SG", role="primary")["partner"].nunique() == 20
-    assert df.loc[df["ticker"] == "PHNAGDP Index", "status"].item() == "check_units"
+    assert df.loc[df["ticker"] == "SIEXTOPH Index", "status"].item() == "gap"
     assert df.loc[df["ticker"] == "SGDSTOTL Index", "status"].item() == "verified"
     assert df["var"].ne("none").all()
 

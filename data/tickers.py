@@ -8,6 +8,7 @@ Flattening rules for keys the YAML leaves implicit:
     field   -> meta.default_field (PX_LAST)
     role    -> "primary" (e.g. the SEMC*/SIMC* rows, whose crosscheck siblings say so)
     status  -> "verified"
+    freq    -> trade rows: "M" (the registry's trade section is all monthly)
     var     -> foreign rows: Y_{country} for gdp, LCPI_{country} for cpi
                (same naming as the united_states section: Y_US, LCPI_US)
 
@@ -31,7 +32,7 @@ FREQS = {"D", "M", "Q"}
 STATUSES = {"verified", "check_units", "gap"}
 
 COLUMNS = ["section", "group", "country", "bloc", "partner", "ticker", "field", "var", "role",
-           "freq", "sa", "form", "span", "status"]
+           "freq", "sa", "form", "span", "status", "break"]
 
 
 class RegistryError(ValueError):
@@ -70,6 +71,7 @@ def series(registry=None):
     df["field"] = df["field"].fillna(registry.get("meta", {}).get("default_field", "PX_LAST"))
     df["role"] = df["role"].fillna("primary")
     df["status"] = df["status"].fillna("verified")
+    df.loc[df["section"] == "trade", "freq"] = df.loc[df["section"] == "trade", "freq"].fillna("M")
     df["var"] = df["var"].replace("none", None)
     validate(df)
     return df
@@ -80,6 +82,7 @@ def validate(df):
     problems = []
     if df["ticker"].isna().any():
         problems.append(f"{df['ticker'].isna().sum()} entries have no ticker")
+    problems.extend(f"{t}: no freq" for t in df.loc[df["freq"].isna(), "ticker"])
     for col, allowed in (("role", ROLES), ("form", FORMS), ("freq", FREQS), ("status", STATUSES)):
         bad = df.loc[df[col].notna() & ~df[col].isin(allowed), ["ticker", col]]
         problems.extend(f"{t}: {col}={v!r} not in {sorted(allowed)}" for t, v in bad.itertuples(index=False))

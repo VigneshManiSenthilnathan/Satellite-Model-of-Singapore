@@ -26,6 +26,8 @@
 #   span    verified data range
 #   field   Bloomberg field (default PX_LAST)
 #   status  verified (default) | check_units | gap (see `known_gaps` at bottom)
+#   break   optional quarter of a level break (e.g. a base-year change) that P1.13
+#           bridges with the country's y/y `history` series
 #
 # Bloomberg licensing: tickers are fine to commit; pulled data is not.
 # =============================================================================
@@ -70,6 +72,30 @@ singapore:
     - {ticker: "SNEER Index",    var: LS,   role: crosscheck, freq: D, sa: false, form: index,    span: 1999Q1-2026Q3}  # Bloomberg S$NEER index (Jan 1999=100)
     - {ticker: "GSSGSGD Index",  var: LS,   role: crosscheck, freq: D, sa: false, form: index,    span: 2001Q3-2026Q3}  # Goldman Sachs S$NEER estimate
 
+  # SGD bilateral rates (foreign currency per S$; up = S$ appreciation) for the simple
+  # trade-weighted S$ index in the S$NEER validation (P1.12). Added 2026-10-27; spans
+  # from monthly pulls. SGDPEN omitted: history only from 2025Q3 (Peru's weight is tiny).
+  neer_bilateral:
+    - {ticker: "SGDUSD Curncy", var: LS, role: crosscheck, partner: US, freq: D, sa: false, form: level, span: 1990Q1-2026Q3}  # S$ vs US dollar
+    - {ticker: "SGDEUR Curncy", var: LS, role: crosscheck, partner: EU, freq: D, sa: false, form: level, span: 1989Q1-2026Q3}  # S$ vs euro (synthetic pre-1999)
+    - {ticker: "SGDJPY Curncy", var: LS, role: crosscheck, partner: JA, freq: D, sa: false, form: level, span: 1989Q1-2026Q3}  # S$ vs yen
+    - {ticker: "SGDCNY Curncy", var: LS, role: crosscheck, partner: CH, freq: D, sa: false, form: level, span: 1981Q1-2026Q3}  # S$ vs renminbi
+    - {ticker: "SGDHKD Curncy", var: LS, role: crosscheck, partner: HK, freq: D, sa: false, form: level, span: 1981Q1-2026Q3}  # S$ vs Hong Kong dollar
+    - {ticker: "SGDINR Curncy", var: LS, role: crosscheck, partner: IN, freq: D, sa: false, form: level, span: 1988Q1-2026Q3}  # S$ vs Indian rupee
+    - {ticker: "SGDIDR Curncy", var: LS, role: crosscheck, partner: ID, freq: D, sa: false, form: level, span: 1991Q4-2026Q3}  # S$ vs rupiah
+    - {ticker: "SGDKRW Curncy", var: LS, role: crosscheck, partner: KR, freq: D, sa: false, form: level, span: 1981Q2-2026Q3}  # S$ vs won
+    - {ticker: "SGDMYR Curncy", var: LS, role: crosscheck, partner: MY, freq: D, sa: false, form: level, span: 1981Q1-2026Q3}  # S$ vs ringgit
+    - {ticker: "SGDPHP Curncy", var: LS, role: crosscheck, partner: PH, freq: D, sa: false, form: level, span: 1991Q4-2026Q3}  # S$ vs Philippine peso
+    - {ticker: "SGDTWD Curncy", var: LS, role: crosscheck, partner: TW, freq: D, sa: false, form: level, span: 1983Q4-2026Q3}  # S$ vs Taiwan dollar
+    - {ticker: "SGDTHB Curncy", var: LS, role: crosscheck, partner: TH, freq: D, sa: false, form: level, span: 1981Q1-2026Q3}  # S$ vs baht
+    - {ticker: "SGDBRL Curncy", var: LS, role: crosscheck, partner: BR, freq: D, sa: false, form: level, span: 2000Q1-2026Q3}  # S$ vs real
+    - {ticker: "SGDMXN Curncy", var: LS, role: crosscheck, partner: MX, freq: D, sa: false, form: level, span: 2000Q1-2026Q3}  # S$ vs Mexican peso
+    - {ticker: "SGDCLP Curncy", var: LS, role: crosscheck, partner: CL, freq: D, sa: false, form: level, span: 2000Q1-2026Q3}  # S$ vs Chilean peso
+    - {ticker: "SGDCOP Curncy", var: LS, role: crosscheck, partner: CO, freq: D, sa: false, form: level, span: 2000Q1-2026Q3}  # S$ vs Colombian peso
+    - {ticker: "SGDAUD Curncy", var: LS, role: crosscheck, partner: AU, freq: D, sa: false, form: level, span: 1988Q1-2026Q3}  # S$ vs Australian dollar
+    - {ticker: "SGDCAD Curncy", var: LS, role: crosscheck, partner: CA, freq: D, sa: false, form: level, span: 1999Q2-2026Q3}  # S$ vs Canadian dollar
+    - {ticker: "SGDGBP Curncy", var: LS, role: crosscheck, partner: GB, freq: D, sa: false, form: level, span: 1981Q1-2026Q3}  # S$ vs sterling
+
   # -> CSI. Decision D3: blend of z-scored loan–deposit spread and banks' NIM (P1.13a).
   # MAS changed its bank-rate publications in 2021: the long series below stop
   # in 2021Q2 and the weighted-average series start in 2021Q3.
@@ -88,13 +114,18 @@ singapore:
     - {ticker: "SIIRSADE Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 1983Q1-2021Q2}  # Singapore savings deposit rate
     - {ticker: "SPLRWSDL Index", var: CSI,  role: crosscheck, freq: M, sa: false, form: rate,     span: 2021Q3-2026Q2}  # Weighted average savings deposit rate (< S$75k)
 
-  csi_net_interest_margin:   # field differs from PX_LAST; quarterly company fundamentals, %
+  # NIM, field differs from PX_LAST; quarterly company fundamentals, %.
+  # T12_NET_INT_MARGIN turns semi-annual from 2020 (Q1/Q3 missing; DBS also lacks
+  # 2008Q4-2009Q4), so each bank's T12 series is used to the end of its last run of
+  # >= 4 consecutive quarters and continued with the company-reported NIM (role post,
+  # quarterly 2013+), level-shifted over the overlap (decision 2026-10-27, P1.13a).
+  csi_net_interest_margin:
     - {ticker: "DBS SP Equity",  var: CSI,  role: primary,    freq: Q, sa: false, form: rate, field: T12_NET_INT_MARGIN,           span: 2003Q1-2026Q2}  # DBS Group net interest margin, trailing 12 months, %
     - {ticker: "OCBC SP Equity", var: CSI,  role: primary,    freq: Q, sa: false, form: rate, field: T12_NET_INT_MARGIN,           span: 2003Q1-2026Q2}  # OCBC net interest margin, trailing 12 months, %
     - {ticker: "UOB SP Equity",  var: CSI,  role: primary,    freq: Q, sa: false, form: rate, field: T12_NET_INT_MARGIN,           span: 2003Q1-2026Q2}  # UOB net interest margin, trailing 12 months, %
-    - {ticker: "DBS SP Equity",  var: CSI,  role: crosscheck, freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2003Q1-2026Q2}  # DBS NIM, company-reported basis
-    - {ticker: "OCBC SP Equity", var: CSI,  role: crosscheck, freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2007Q4-2026Q2}  # OCBC NIM, company-reported basis
-    - {ticker: "UOB SP Equity",  var: CSI,  role: crosscheck, freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2002Q3-2026Q2}  # UOB NIM, company-reported basis
+    - {ticker: "DBS SP Equity",  var: CSI,  role: post,       freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2003Q1-2026Q2}  # DBS NIM, company-reported basis (quarterly from 2013)
+    - {ticker: "OCBC SP Equity", var: CSI,  role: post,       freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2007Q4-2026Q2}  # OCBC NIM, company-reported basis (quarterly from 2013)
+    - {ticker: "UOB SP Equity",  var: CSI,  role: post,       freq: Q, sa: false, form: rate, field: IS_NET_INT_MARGIN_COMP_BASIS, span: 2002Q3-2026Q2}  # UOB NIM, company-reported basis (quarterly from 2011; 2020Q4 missing)
 
   # Forecast benchmarks for the backtest (P5.12–P5.20). Each target-year consensus
   # ticker keeps its own history, so bdh on "ECGDSG 14 Index" returns the consensus
@@ -183,17 +214,17 @@ trade:
     - {ticker: "SIMCUK Index",   partner: GB, span: 1980Q1-2026Q3}  # Imports from United Kingdom
 
 # -----------------------------------------------------------------------------
-# 3. United States — RR_US, RR_US_BAR and the US bloc
+# 3. United States — RR_US = RS_US - PIE_EXP_US (built in P1.13), RR_US_BAR, and the US bloc
 # -----------------------------------------------------------------------------
 united_states:
   - {ticker: "GDP CHWG Index", var: Y_US,      role: primary,    freq: Q, sa: true,  form: level, span: 1980Q1-2026Q2}  # US real GDP, chained $bn, SAAR level
   - {ticker: "CPI INDX Index", var: LCPI_US,   role: primary,    freq: M, sa: true,  form: index, span: 1980Q1-2026Q3}  # US CPI-U all items, SA
   - {ticker: "CPURNSA Index",  var: LCPI_US,   role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # US CPI-U all items, NSA
   - {ticker: "1116639 Index",  var: LCPI_US,   role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # IMF IFS US CPI
-  - {ticker: "USGG3M Index",   var: RR_US,     role: primary,    freq: D, sa: false, form: rate,  span: 1980Q1-2026Q3}  # US generic 3-month T-bill yield, % (nominal leg of RR_US)
-  - {ticker: "FDTR Index",     var: RR_US,     role: crosscheck, freq: D, sa: false, form: rate,  span: 1980Q1-2026Q3}  # Fed funds target rate, upper bound, %
-  - {ticker: "CONSPXMD Index", var: RR_US,     role: primary,    freq: M, sa: false, form: rate,  span: 1980Q1-2026Q3}  # UMich expected price change next 12m, median, % (expected-inflation leg of RR_US)
-  - {ticker: "CIEFMICH Index", var: RR_US,     role: crosscheck, freq: Q, sa: false, form: rate,  span: 1999Q1-2026Q3}  # Fed Common Inflation Expectations index (Michigan variant)
+  - {ticker: "USGG3M Index",   var: RS_US,     role: primary,    freq: D, sa: false, form: rate,  span: 1980Q1-2026Q3}  # US generic 3-month T-bill yield, % (nominal leg of RR_US)
+  - {ticker: "FDTR Index",     var: RS_US,     role: crosscheck, freq: D, sa: false, form: rate,  span: 1980Q1-2026Q3}  # Fed funds target rate, upper bound, %
+  - {ticker: "CONSPXMD Index", var: PIE_EXP_US, role: primary,    freq: M, sa: false, form: rate,  span: 1980Q1-2026Q3}  # UMich expected price change next 12m, median, % (expected-inflation leg of RR_US)
+  - {ticker: "CIEFMICH Index", var: PIE_EXP_US, role: crosscheck, freq: Q, sa: false, form: rate,  span: 1999Q1-2026Q3}  # Fed Common Inflation Expectations index (Michigan variant)
   - {ticker: "USNRUS Index",   var: RR_US_BAR, role: primary,    freq: Q, sa: false, form: rate,  span: 1980Q1-2026Q2}  # Holston-Laubach-Williams US natural rate of interest (r*), % — replaces the NY Fed download in P1.9
 
 # -----------------------------------------------------------------------------
@@ -247,7 +278,8 @@ foreign:
   IN:
     bloc: EA7
     gdp:
-      - {ticker: "INBGGDRQ Index", role: primary,    freq: Q, sa: false, form: level, span: 1996Q2-2026Q2}  # India real GDP, quarterly, NSA level — seasonally adjust (India publishes no SA series)
+      - {ticker: "INBGGDRQ Index", role: primary,    freq: Q, sa: false, form: level, span: 1996Q2-2026Q2, break: 2022Q2}  # India real GDP, quarterly, NSA level — seasonally adjust (India publishes no SA series). Base-year break at 2022Q2 (2022-23 base, level x1.49): bridged with the y/y series below (P1.13, 2026-10-27)
+      - {ticker: "INBGDRQY Index", role: history,    freq: Q, sa: false, form: yoy,   span: 1997Q2-2026Q2}  # India real GDP, quarterly y/y % — bridges the INBGGDRQ base-year break (added 2026-10-27)
     cpi:
       - {ticker: "5346639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS India CPI
       - {ticker: "INFUTOT Index",  role: crosscheck, freq: M, sa: false, form: index, span: 2013Q1-2026Q3}  # India CPI combined (all-India)
@@ -282,7 +314,7 @@ foreign:
   PH:
     bloc: EA7
     gdp:
-      - {ticker: "PHNAGDP Index",  role: primary,    freq: Q, sa: true,  form: qoq,   span: 1998Q1-2026Q2, status: check_units}  # Philippines national accounts real GDP — appears to be q/q % SA; confirm with DES
+      - {ticker: "PHNAGDP Index",  role: primary,    freq: Q, sa: true,  form: qoq,   span: 1998Q1-2026Q2}  # Philippines real GDP, q/q % SA — chain into a level. Units confirmed 2026-10-27: INDX_UNITS=Percent; 4-quarter compounding matches PHGDPYOY (corr 0.994, mean abs diff 0.27pp)
       - {ticker: "PHGDPYOY Index", role: history,    freq: Q, sa: false, form: yoy,   span: 1982Q1-2026Q2}  # Philippines real GDP, y/y % — back-cast
       - {ticker: "PHGDP00 Index",  role: crosscheck, freq: Q, sa: false, form: level, span: 1981Q1-2019Q4}  # Philippines real GDP, constant 2000 prices, NSA level (discontinued)
     cpi:
@@ -292,7 +324,9 @@ foreign:
   TW:
     bloc: EA7
     gdp:
-      - {ticker: "TWRGSAAR Index", role: primary,    freq: Q, sa: true,  form: qoq_saar, span: 1981Q2-2026Q2}  # Taiwan real GDP, q/q % SAAR — chain into a level
+      - {ticker: "TWRGSARP Index", role: primary,    freq: Q, sa: true,  form: level, span: 1982Q1-2026Q2}  # Taiwan real GDP, chained volume, SA level (added 2026-10-27: reproduces official annual growth, 2008 +0.8%, 2010 +10.3%)
+      - {ticker: "TWRGSAAR Index", role: crosscheck, freq: Q, sa: true,  form: qoq_saar, span: 1981Q2-2026Q2}  # Taiwan real GDP, q/q % SAAR — was primary; its chained level misses official annual growth (2008 -2.0% vs +0.7%)
+      - {ticker: "TWGDCONY Index", role: crosscheck, freq: Q, sa: false, form: yoy,   span: 1980Q1-2026Q2}  # Taiwan real GDP chained volume, y/y % (official growth check, added 2026-10-27)
     cpi:
       - {ticker: "TWCPI Index",    role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # Taiwan CPI, NSA (Taiwan is not in IMF IFS)
 
@@ -355,7 +389,7 @@ foreign:
   CA:
     bloc: RC7
     gdp:
-      - {ticker: "CGE9ANN Index",  role: primary,    freq: Q, sa: true,  form: level, span: 1980Q1-2026Q2, status: check_units}  # Canada real GDP (expenditure), chained 2017 prices SAAR — latest value 3.316 looks like a growth rate, not a level; confirm with DES
+      - {ticker: "CGE9ANN Index",  role: primary,    freq: Q, sa: true,  form: qoq_saar, span: 1980Q1-2026Q2}  # Canada real GDP (expenditure), q/q % SAAR — chain into a level. Units confirmed 2026-10-27: INDX_UNITS=Percent, mean 2.4 / sd 5.1 (annualised q/q)
     cpi:
       - {ticker: "1566639 Index",  role: primary,    freq: M, sa: false, form: index, span: 1980Q1-2026Q2}  # IMF IFS Canada CPI
       - {ticker: "CACPI Index",    role: crosscheck, freq: M, sa: false, form: index, span: 1980Q1-2026Q3}  # Canada CPI, NSA
@@ -400,20 +434,36 @@ known_gaps:
   nim_start: >-
     Bank NIM data start 2002-03, so the CSI blend (D3) is spread-only before
     2003. Record how the blend is handled pre-2003 in P1.13a.
+  nim_semiannual: >-
+    T12_NET_INT_MARGIN has no Q1/Q3 values from 2020 for any bank (DBS also
+    lacks 2008Q4-2009Q4). RESOLVED 2026-10-27: continued with the
+    company-reported NIM (IS_NET_INT_MARGIN_COMP_BASIS, role post); see the
+    csi_net_interest_margin comment.
   nodx_partner_breaks: >-
     NODX to India stops 2024Q4; NODX to the Philippines and Australia have
     almost no history. Use total exports (SEMC*) for those partners, or
     re-weight NODX shares over available partners.
   indonesia_gdp_level: >-
     No SA real GDP level for Indonesia on Bloomberg. Build an NSA level from
-    y/y growth and an anchor year, then seasonally adjust (P1.10).
-  units_to_confirm: >-
-    CGE9ANN (Canada) and PHNAGDP (Philippines) need DES <GO> checks: their
-    latest values look like growth rates rather than levels.
+    y/y growth and an anchor year, then seasonally adjust (P1.10). As built
+    (2026-10-27) the anchor year is flat at 100, so each quarter is its own
+    y/y chain and the seasonal pattern is not observed; flagged in lineage.
+    Revisit with P3.9 (IDGDQY q/q NSA from 2008 could anchor it).
+  india_gdp_base_break: >-
+    RESOLVED 2026-10-27: INBGGDRQ switches to the 2022-23 base at 2022Q2
+    (level x1.49, no link); bridged in P1.13 with INBGDRQY y/y (`break` key).
+  taiwan_gdp_chain: >-
+    RESOLVED 2026-10-27: TWRGSAAR chained into a level missed official annual
+    growth (2008 -2.0% vs +0.7%); primary is now the SA level TWRGSARP.
+  # units_to_confirm: RESOLVED 2026-10-27 -- CGE9ANN is q/q % SAAR, PHNAGDP is
+  # q/q % SA (see their entries); both are chained into levels in P1.13.
   sibor_rs_backcast: >-
     SIBOR starts 1999Q3. RS before then uses the IMF interbank money-market
-    rate (5766586), which may be an overnight rather than a 3-month rate;
-    check the definition and level difference over the 1999-2021 overlap.
+    rate (5766586). Checked 2026-10-27 on monthly averages: it behaves like an
+    overnight rate -- vs overnight SORA (2005-2021) corr 0.978, mean diff
+    +0.11pp, RMSE 0.24pp; vs 3M SIBOR (1999-2021) corr 0.957, mean diff
+    -0.25pp, RMSE 0.39pp. The back-cast therefore needs a level adjustment to
+    3M-SIBOR terms; method to be decided with the SORA splice (P1.11).
   us_policy_rate_consensus: >-
     ECPOUS {yy} Index resolves ("US Federal Funds Rate Forecast") but has no
     PX_LAST, neither reference nor history, for any year 2015-2028 (checked

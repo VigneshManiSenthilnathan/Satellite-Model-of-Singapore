@@ -22,6 +22,7 @@ Usage:
     python -m data.collect_data                 # pull (cache hits are free) + verify
     python -m data.collect_data --refresh       # force live pulls
     python -m data.collect_data --years 2026 2027
+    python -m data.collect_data --vintage 2026-10-27   # rebuild manifest from the cache only (P1.3)
 """
 
 import argparse
@@ -38,12 +39,12 @@ from data.bloomberg import (
     BloombergSessionError,
     bdh,
     bdp,
+    list_vintages,
 )
 from data.panel import SYNTHETIC_ENV, synthetic_mode
 
 START = "1980-01-01"
 PERIODICITY = {"D": "DAILY", "M": "MONTHLY", "Q": "QUARTERLY"}
-DEFAULT_FREQ = "M"      # trade rows carry no freq; the registry's trade section is all monthly
 CONSENSUS_FREQ = "M"    # consensus values sampled at month-ends
 
 ITEM_COLUMNS = ["section", "group", "country", "ticker", "field", "var", "role", "freq", "span", "status"]
@@ -59,7 +60,6 @@ def pull_list(years=None, registry=None):
     registry = tickers.load_registry() if registry is None else registry
     default_field = registry.get("meta", {}).get("default_field", "PX_LAST")
     items = tickers.series(registry)[ITEM_COLUMNS].copy()
-    items["freq"] = items["freq"].fillna(DEFAULT_FREQ)
 
     consensus = []
     for year in default_years() if years is None else years:
@@ -83,11 +83,12 @@ def _span(dates):
     return f"{pd.Period(dates.min(), 'Q')}-{pd.Period(dates.max(), 'Q')}"
 
 
-def collect(items, refresh=False, progress=print):
+def collect(items, refresh=False, vintage=None, progress=print):
     """Pull every item through the cache. Returns the manifest (one row per item).
 
     Bad tickers and request errors are recorded and skipped; a session that stays
-    down after data.bloomberg's retries stops the run.
+    down after data.bloomberg's retries stops the run. With `vintage`, reads that
+    vintage from the cache only; series missing from it are recorded as "missing".
     """
     rows = []
     for i, item in enumerate(items.itertuples(index=False), 1):
@@ -95,7 +96,9 @@ def collect(items, refresh=False, progress=print):
                   "first": None, "last": None, "span_pulled": None, "result": "ok", "message": ""}
         try:
             df = bdh(item.ticker, item.field, START, periodicity=record["periodicity"],
-                     periodicityAdjustment="CALENDAR", refresh=refresh)
+                     periodicityAdjustment="CALENDAR", refresh=refresh, vintage=vintage)
+        except FileNotFoundError as exc:
+            record.update(result="missing", message=str(exc))
         except BloombergSessionError:
             raise
         except BloombergSecurityError as exc:
@@ -110,17 +113,35 @@ def collect(items, refresh=False, progress=print):
                           result="ok" if len(df) else "empty")
         rows.append(record)
         if progress and (i % 25 == 0 or i == len(items)):
-            progress(f"  {i}/{len(items)} pulled")
+            progress(f"  {i}/{len(items)} done")
     return pd.DataFrame(rows)
 
 
-def verify(manifest, names=None):
+def load_series(ticker, freq, field="PX_LAST", vintage=None):
+    """One collected series from the cache, as a float Series on a PeriodIndex of its native freq.
+
+    Cache-only: reads `vintage` (default: the latest cached vintage) with the same
+    request collect() made, so processing code never triggers a live Bloomberg pull.
+    """
+    if vintage is None:
+        vintages = list_vintages()
+        if not vintages:
+            raise FileNotFoundError("No Bloomberg vintages cached; run python -m data.collect_data first.")
+        vintage = vintages[-1]
+    df = bdh(ticker, field, START, periodicity=PERIODICITY[freq], periodicityAdjustment="CALENDAR",
+             vintage=vintage)
+    s = df.set_index("date")["value"].astype(float)
+    s.index = s.index.to_period(freq)
+    return s.rename(ticker).sort_index()
+
+
+def verify(manifest, names=None, vintage=None):
     """Re-verify the registry against a manifest. Returns findings: ticker, field, check, severity, detail.
 
     `names` maps ticker -> NAME; by default it is pulled with one bdp request.
     """
     if names is None:
-        ref = bdp(sorted(manifest["ticker"].unique()), "NAME")
+        ref = bdp(sorted(manifest["ticker"].unique()), "NAME", vintage=vintage)
         names = dict(zip(ref["ticker"], ref["value"], strict=True))
     findings = []
 
@@ -153,21 +174,25 @@ def main(argv=None):
     parser.add_argument("--years", type=int, nargs="+",
                         help="consensus target years (default: this and next)")
     parser.add_argument("--refresh", action="store_true", help="force live pulls instead of cache hits")
+    parser.add_argument("--vintage", help="YYYY-MM-DD: rebuild manifest and checks from that cached vintage, "
+                                          "no Bloomberg calls")
     args = parser.parse_args(argv)
 
-    if synthetic_mode():
+    if synthetic_mode() and args.vintage is None:
         print(f"collect_data needs Bloomberg; unset {SYNTHETIC_ENV} to run it.", file=sys.stderr)
         return 1
 
-    items = pull_list(args.years)
-    print(f"Pulling {len(items)} series ({items['ticker'].nunique()} unique tickers) from {START}")
-    manifest = collect(items, refresh=args.refresh)
-    today = dt.date.today().isoformat()
+    as_of = pd.Timestamp(args.vintage).date() if args.vintage else dt.date.today()
+    items = pull_list(args.years or default_years(as_of))
+    source = f"vintage {as_of} (cache only)" if args.vintage else "Bloomberg"
+    print(f"Collecting {len(items)} series ({items['ticker'].nunique()} unique tickers) from {START}, "
+          f"source: {source}")
+    manifest = collect(items, refresh=args.refresh, vintage=args.vintage)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    manifest.to_csv(CACHE_DIR / f"manifest_{today}.csv", index=False)
+    manifest.to_csv(CACHE_DIR / f"manifest_{as_of}.csv", index=False)
 
-    findings = verify(manifest)
-    findings.to_csv(CACHE_DIR / f"verify_{today}.csv", index=False)
+    findings = verify(manifest, vintage=args.vintage)
+    findings.to_csv(CACHE_DIR / f"verify_{as_of}.csv", index=False)
 
     print("\nPull results:", manifest["result"].value_counts().to_dict())
     problems = findings[findings["severity"] == "problem"]
@@ -176,7 +201,7 @@ def main(argv=None):
     if len(problems):
         print(problems.to_string(index=False))
     print(f"\nManifest and findings written to {CACHE_DIR}")
-    return 1 if manifest["result"].isin(["bad_ticker", "error"]).any() else 0
+    return 1 if manifest["result"].isin(["bad_ticker", "error", "missing"]).any() else 0
 
 
 if __name__ == "__main__":
