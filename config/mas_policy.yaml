@@ -1,0 +1,768 @@
+# =============================================================================
+# SMS replication — MAS S$NEER policy decisions, 1994-2026 (IMPLEMENTATION_PLAN.md, P1.12)
+# =============================================================================
+# Public MAS sources only (D1). Used to check that the S$NEER proxy's trend
+# slope matches the announced stance in each policy episode.
+#
+# 2001-2026: every Monetary Policy Statement (first published 22 Feb 2001), read
+#   from mas.gov.sg and cross-checked against MAS's "Past monetary policy
+#   decisions" table -- confidence high. Spot-checked 2026-10-27 against the
+#   statements of 12 Apr 2004, 14 Apr 2010 and 30 Mar 2020.
+# 1994-2000: no statements were published; stance periods reconstructed from
+#   MAS annual reports and a 2001 MAS monograph -- confidence medium/low, dates
+#   approximate (`date_precision`), band centre unknown. "Steady" (late 1996)
+#   and the H2-1998 easing are recorded as a zero slope; MAS does not say so.
+# No MAS source found mentions a depreciating slope in 1994-2026.
+#
+# Fields: date, scheduled (false = off-cycle), slope_change, slope_stance
+# (after the decision), centre, width, quote, url, confidence, and optional
+# date_precision / period_end / note.
+# =============================================================================
+
+
+decisions:
+
+  # ---------------------------------------------------------------- 1994-2000 (no published statements)
+  - date: 1994-01-01
+    date_precision: period
+    period_end: 1996-12-31
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unknown
+    width: unchanged
+    quote: "Before the crisis, MAS allowed a trend appreciation of the Singapore Dollar, in line with the rapid growth of economic activity and an economy that was operating at full capacity."
+    url: https://www.mas.gov.sg/-/media/MAS/resource/about_us/annual_reports/annual19981999/MASAnnual9899.pdf
+    confidence: low
+    note: >-
+      Prevailing stance, not a dated decision. Corroborated by MAS monograph "Singapore's Exchange
+      Rate Policy" (Feb 2001): "The NEER rose by about 50% between 1988-97 or 4.1% per year, to keep
+      inflationary pressures in check" (https://www.mas.gov.sg/-/media/MAS/manual-migration/Monographs/exchangePolicy.pdf).
+      No primary source found for individual 1994-1996 reviews (annual reports 1994/95-1996/97 not online).
+
+  - date: 1996-10-01
+    date_precision: period
+    scheduled: true
+    slope_change: decrease
+    slope_stance: zero
+    centre: unknown
+    width: unchanged
+    quote: "The steady Singapore Dollar exchange rate policy stance that was adopted in late 1996, continued in 1997."
+    url: https://www.mas.gov.sg/-/media/MAS/resource/about_us/annual_reports/annual19971998/MASAnnual9798.pdf
+    confidence: low
+    note: >-
+      Date is only "late 1996". "Steady" is interpreted as a flat (zero-slope) path; MAS does not
+      say "zero percent appreciation" here. The 2001 monograph notes S$/US$ "remained relatively
+      stable" from Jun 95 for two years. Treat slope_stance as uncertain (zero vs reduced appreciation).
+
+  - date: 1997-10-01
+    date_precision: period
+    scheduled: false
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unknown
+    width: widened
+    quote: "the policy band, which was widened towards the end of 1997 in response to heightened foreign exchange volatility, remained in place as financial markets continued to be extremely volatile through 1998."
+    url: https://www.mas.gov.sg/-/media/MAS/resource/about_us/annual_reports/annual19981999/MASAnnual9899.pdf
+    confidence: medium
+    note: >-
+      Exact date not published ("towards the end of 1997"); scheduled status unknown (crisis response,
+      treated as off-cycle). AR 1997/98 also: "the trade-weighted Singapore Dollar was allowed to
+      fluctuate within a wider range". The 2001 monograph says MAS let the NEER "rise above the policy
+      band" in late-97/early-98 and "only brought down the NEER to within the policy band months later".
+
+  - date: 1998-07-01
+    date_precision: half-year
+    scheduled: true
+    slope_change: decrease
+    slope_stance: zero
+    centre: unknown
+    width: unchanged
+    quote: "Following an easing of monetary conditions in the second half of 1998, a neutral policy stance was maintained throughout 1999."
+    url: https://www.mas.gov.sg/-/media/MAS/resource/about_us/annual_reports/annual19992000/MASAnnual9900.pdf
+    confidence: low
+    note: >-
+      AR 1998/99: "MAS has therefore adopted an easier policy stance." MAS does not say whether the
+      easing was a slope cut, a downward re-centring, or both, nor whether the slope went below zero;
+      "neutral" (1999) is recorded as zero slope. A depreciating slope in H2 1998 cannot be ruled out
+      from MAS sources found. Centre unknown.
+
+  - date: 1999-01-01
+    date_precision: year
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unknown
+    width: narrowed
+    quote: "greater stability in financial and currency markets compared with 1998 also allowed the exchange rate band, within which the Singapore Dollar exchange rate can fluctuate, to be narrowed back to its pre-crisis level."
+    url: https://www.mas.gov.sg/-/media/MAS/resource/about_us/annual_reports/annual19992000/MASAnnual9900.pdf
+    confidence: medium
+    note: "Narrowing occurred at an unspecified point in 1999. Neutral stance held throughout 1999 (same report)."
+
+  - date: 2000-01-01
+    date_precision: half-year
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unknown
+    width: unchanged
+    quote: "MAS decided early in 2000 to embark on a gradual tightening of monetary policy. This involved the adoption of a target path for the exchange rate that allowed for a modest, trend appreciation of the Singapore Dollar on a trade-weighted basis."
+    url: https://www.mas.gov.sg/-/media/mas/resource/about_us/annual_reports/monetary-authority-of-singapore-annual-report-2000-2001.pdf
+    confidence: medium
+    note: "Exact date not published ('early in 2000'). Same report: NEER reached 'the upper bound of the policy band by the end of the year' 2000."
+
+  # ---------------------------------------------------------------- 2001-2003 (semi-annual, Jan/Jul)
+  - date: 2001-02-22
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "continue to allow a gradual, modest appreciation of the Singapore dollar on a trade-weighted basis."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2001/monetary-policy-statement-22-feb-01
+    confidence: high
+    note: >-
+      First published MPS. AR 2000/01 says "MAS decided in January 2001 to reaffirm its policy" - the
+      January review and this 22 Feb statement are treated as one decision (statement date used).
+
+  - date: 2001-07-12
+    scheduled: true
+    slope_change: set_zero
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS has therefore shifted to a neutral exchange rate policy stance, with a policy band centred on a zero percent appreciation of the S$NEER."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2001/monetary-policy-statement-12-jul-01
+    confidence: high
+
+  - date: 2001-10-10
+    scheduled: false
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: widened
+    quote: "The MAS has therefore decided to widen the policy band to allow greater flexibility in managing the exchange rate."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2001/mas-press-statement-on-monetary-policy-10-oct-2001
+    confidence: high
+    note: "Off-cycle (post-September 11). 'The widened policy band will continue to be centred on a zero percent appreciation of the S$NEER.'"
+
+  - date: 2002-01-02
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: down
+    width: narrowed
+    quote: "The MAS will therefore maintain a zero percent appreciation path for the policy band, centred on the current level of the S$NEER. We are also restoring a narrower policy band, as market and economic conditions have become less volatile."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2002/monetary-policy-statement-2-jan-02
+    confidence: high
+    note: "Re-centred at the prevailing (current) level; MAS table gives direction as 'Re-centre downwards'."
+
+  - date: 2002-07-11
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will maintain its current policy stance of a zero per cent appreciation in the S$NEER for the second half of 2002."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2002/monetary-policy-statement-11-jul-02
+    confidence: high
+
+  - date: 2003-01-02
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "maintain the neutral policy stance of a zero percent appreciation for the S$NEER policy path, with no change in the level at which the policy band is centred and in the width of the band"
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2003/monetary-policy-statement-2-jan-03
+    confidence: high
+
+  - date: 2003-07-10
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: down
+    width: unchanged
+    quote: "The MAS will therefore re-centre the exchange rate policy band at the current level of the S$NEER, while maintaining a zero percent appreciation path. The width of the band will remain unchanged."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2003/monetary-policy-statement-10-jul-03
+    confidence: high
+    note: "Re-centred at prevailing level; MAS table: 'Re-centre downwards'."
+
+  # ---------------------------------------------------------------- Oct 2003 - Oct 2023 (semi-annual, Apr/Oct)
+  - date: 2003-10-10
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "maintain the current neutral policy stance of a zero percent appreciation of the S$NEER policy path, with no change in the level at which the policy band is centred and in the width of the band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2003/monetary-policy-statement-10-oct-03
+    confidence: high
+    note: "Schedule moved from Jan/Jul to Apr/Oct."
+
+  - date: 2004-04-12
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS is shifting from a zero percent appreciation path to a policy of modest and gradual appreciation of the S$NEER policy band, starting from the mid-point of the current policy band. The width of the band will remain unchanged."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2004/monetary-policy-statement-12-apr-04
+    confidence: high
+
+  - date: 2004-10-11
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "Against this backdrop, MAS will be maintaining its policy of a modest and gradual appreciation of the S$NEER. There will be no change in the slope or the width of the policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2004/monetary-policy-statement-11-oct-04
+    confidence: high
+
+  - date: 2005-04-12
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the current policy of a modest and gradual appreciation of the S$NEER policy band. There will be no change in the slope or the width of the policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2005/monetary-policy-statement-12-apr-05
+    confidence: high
+
+  - date: 2005-10-11
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no change in the level, slope or width of the policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2005/monetary-policy-statement-11-oct-05
+    confidence: high
+
+  - date: 2006-04-11
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no re-centring of the policy band, nor any change to its slope or width."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2006/monetary-policy-statement-11-apr-06
+    confidence: high
+
+  - date: 2006-10-10
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no re-centring of the policy band, or any change to its slope or width."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2006/monetary-policy-statement-10-oct-06
+    confidence: high
+
+  - date: 2007-04-10
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no re-centring of the policy band, or any change to its slope or width."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2007/monetary-policy-statement-10-apr-07
+    confidence: high
+
+  - date: 2007-10-10
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no re-centring of the policy band, or any change in its width. However, we will increase slightly the slope of the S$NEER policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2007/monetary-policy-statement-10-oct-07
+    confidence: high
+
+  - date: 2008-04-10
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: up
+    width: unchanged
+    quote: "MAS will therefore re-centre the exchange rate policy band at the prevailing level of the S$NEER. There will be no change to the slope or width of the policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2008/monetary-policy-statement-10-apr-08
+    confidence: high
+    note: "Re-centred at prevailing level; MAS table: 'Re-centre upwards'."
+
+  - date: 2008-10-10
+    scheduled: true
+    slope_change: set_zero
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS is therefore shifting its policy stance to a zero percent appreciation of the S$NEER policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2008/monetary-policy-statement-10-oct-08
+    confidence: high
+    note: "Same paragraph: '...there will be no re-centring of the band or change to its width.'"
+
+  - date: 2009-04-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: down
+    width: unchanged
+    quote: "MAS will therefore re-centre the exchange rate policy band to the prevailing level of the S$NEER, while keeping the zero percent appreciation path. The width of the band will remain unchanged."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2009/monetary-policy-statement-14-apr-09
+    confidence: high
+    note: "Re-centred at prevailing level; MAS table: 'Re-centre downwards'."
+
+  - date: 2009-10-12
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the current policy stance of a zero percent appreciation of the S$NEER policy path."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2009/monetary-policy-statement-12-oct-09
+    confidence: high
+
+  - date: 2010-04-14
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: up
+    width: unchanged
+    quote: "MAS will therefore re-centre the exchange rate policy band at the prevailing level of the S$NEER. Further, we will shift the policy band from that of a zero percent appreciation to one of modest and gradual appreciation."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2010/monetary-policy-statement-14-apr-10
+    confidence: high
+    note: "Re-centred at prevailing level; MAS table: 'Re-centre upwards'. 'There will be no change to the width of the policy band.'"
+
+  - date: 2010-10-14
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: widened
+    quote: "However, the slope of the policy band will be increased slightly, with no change to the level at which the band is centred. The policy band will at the same time be widened slightly in view of the volatility across international financial markets."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2010/monetary-policy-statement-14-oct-10
+    confidence: high
+
+  - date: 2011-04-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: up
+    width: unchanged
+    quote: "MAS will therefore re-centre the exchange rate policy band upwards. The exchange rate policy band will be re-centred below the prevailing level of the S$NEER."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2011/monetary-policy-statement-14-apr-11
+    confidence: high
+    note: "Re-centred up but BELOW the prevailing S$NEER level. 'There will be no change to the slope and width of the band.'"
+
+  - date: 2011-10-14
+    scheduled: true
+    slope_change: decrease
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "However, given the expected moderation in core inflation, the slope of the policy band will be reduced, with no change to the width of the band and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2011/monetary-policy-statement-14-oct-11
+    confidence: high
+
+  - date: 2012-04-13
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: narrowed
+    quote: "The slope will be increased slightly, and there will be no change to the level at which the band is centred. MAS is also restoring a narrower policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2012/monetary-policy-statement-13-apr-12
+    confidence: high
+
+  - date: 2012-10-12
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no change to the slope and width of the policy band, as well as the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2012/monetary-policy-statement-12-oct-12
+    confidence: high
+
+  - date: 2013-04-12
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no change to the slope and width of the policy band, as well as the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2013/monetary-policy-statement-12-apr-13
+    confidence: high
+
+  - date: 2013-10-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no change to the slope of the policy band, and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2013/monetary-policy-statement-14-oct-13
+    confidence: high
+
+  - date: 2014-04-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no change to the slope of the policy band, and the level at which it is centred. The width of the band will be kept unchanged."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2014/monetary-policy-statement-14-apr-14
+    confidence: high
+
+  - date: 2014-10-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no change to the slope and width of the policy band, and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2014/monetary-policy-statement-14-oct-14
+    confidence: high
+
+  - date: 2015-01-28
+    scheduled: false
+    slope_change: decrease
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "However, the slope of the policy band will be reduced, with no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2015/monetary-policy-statement-28jan15
+    confidence: high
+    note: "Off-cycle per MAS Past Monetary Policy Decisions table (asterisk); statement text itself does not use the word."
+
+  - date: 2015-04-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "There will be no change to the slope and width of the policy band, and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2015/monetary-policy-statement-14apr15
+    confidence: high
+
+  - date: 2015-10-14
+    scheduled: true
+    slope_change: decrease
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "However, the rate of appreciation will be reduced slightly. There will be no change to the width of the policy band and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2015/monetary-policy-statement-14oct15
+    confidence: high
+
+  - date: 2016-04-14
+    scheduled: true
+    slope_change: set_zero
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore set the rate of appreciation of the S$NEER policy band at zero percent, beginning 14 April 2016."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2016/mas-monetary-policy-statement-14apr16
+    confidence: high
+
+  - date: 2016-10-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the rate of appreciation of the S$NEER policy band at zero percent."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2016/mas-monetary-policy-statement-14oct16
+    confidence: high
+
+  - date: 2017-04-13
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the rate of appreciation of the S$NEER policy band at zero percent."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2017/mas-monetary-policy-statement-13apr17
+    confidence: high
+
+  - date: 2017-10-13
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will maintain the rate of appreciation of the S$NEER policy band at zero percent."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2017/mas-monetary-policy-statement-13oct17
+    confidence: high
+
+  - date: 2018-04-13
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS has therefore decided to increase slightly the slope of the S$NEER policy band, from zero percent previously."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2018/mas-monetary-policy-statement-13apr18
+    confidence: high
+
+  - date: 2018-10-12
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS has therefore decided to increase slightly the slope of the S$NEER policy band. The width of the policy band and the level at which it is centred will be unchanged."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2018/mas-monetary-policy-statement-12oct18
+    confidence: high
+
+  - date: 2019-04-12
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the current rate of appreciation of the S$NEER policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2019/mas-monetary-policy-statement-12apr19
+    confidence: high
+
+  - date: 2019-10-14
+    scheduled: true
+    slope_change: decrease
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore reduce slightly the rate of appreciation of the S$NEER policy band. There will be no change to the width of the policy band and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2019/mas-monetary-policy-statement-14oct19
+    confidence: high
+
+  - date: 2020-03-30
+    scheduled: false
+    slope_change: set_zero
+    slope_stance: zero
+    centre: down
+    width: unchanged
+    quote: "MAS will adopt a zero percent per annum rate of appreciation of the policy band starting at the prevailing level of the S$NEER. There will be no change to the width of the policy band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2020/mas-monetary-policy-statement-30mar20
+    confidence: high
+    note: >-
+      This is the April 2020 MPS brought forward (announced 23 Mar 2020:
+      https://www.mas.gov.sg/news/media-releases/2020/date-of-release-of-monetary-policy-statement).
+      MAS's Past Decisions table does NOT asterisk it as off-cycle; marked scheduled: false here because
+      it was released ahead of the regular April date. Re-centred at prevailing level; MAS table:
+      'Re-centre downwards'.
+
+  - date: 2020-10-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain a zero percent per annum rate of appreciation of the policy band. The width of the policy band and the level at which it is centred will be unchanged."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2020/mas-monetary-policy-statement-14oct20
+    confidence: high
+
+  - date: 2021-04-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: zero
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain a zero percent per annum rate of appreciation of the policy band. The width of the policy band and the level at which it is centred will be unchanged."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2021/mas-monetary-policy-statement-14apr21
+    confidence: high
+
+  - date: 2021-10-14
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore raise slightly the slope of the S$NEER policy band, from zero percent previously."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2021/mas-monetary-policy-statement-14oct21
+    confidence: high
+
+  - date: 2022-01-25
+    scheduled: false
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore raise slightly the rate of appreciation of the S$NEER policy band. The width of the policy band and the level at which it is centred will be unchanged."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2022/mas-monetary-policy-statement-25jan22
+    confidence: high
+    note: "Off-cycle per MAS Past Decisions table (asterisk)."
+
+  - date: 2022-04-14
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: up
+    width: unchanged
+    quote: "First, MAS will re-centre the mid-point of the exchange rate policy band at the prevailing level of the S$NEER. Second, MAS will increase slightly the rate of appreciation of the policy band"
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2022/mas-monetary-policy-statement-14apr22
+    confidence: high
+    note: "Re-centred at prevailing level; MAS table: 'Re-centre upwards'."
+
+  - date: 2022-07-14
+    scheduled: false
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: up
+    width: unchanged
+    quote: "Accordingly, MAS will re-centre the mid-point of the S$NEER policy band up to its prevailing level. There will be no change to the slope and width of the band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2022/mas-monetary-policy-statement-14jul22
+    confidence: high
+    note: "Off-cycle per MAS Past Decisions table (asterisk)."
+
+  - date: 2022-10-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: up
+    width: unchanged
+    quote: "MAS will therefore re-centre the mid-point of the S$NEER policy band up to its prevailing level. There will be no change to the slope and width of the band."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2022/mas-monetary-policy-statement-14oct22
+    confidence: high
+
+  - date: 2023-04-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2023/mas-monetary-policy-statement-14apr23
+    confidence: high
+
+  - date: 2023-10-13
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2023/mas-monetary-policy-statement-13oct23
+    confidence: high
+    note: "Same statement: 'MAS will be shifting to a quarterly monetary policy statement schedule from 2024.'"
+
+  # ---------------------------------------------------------------- 2024 onward (quarterly)
+  - date: 2024-01-29
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2024/mas-monetary-policy-statement-29jan24
+    confidence: high
+
+  - date: 2024-04-12
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2024/mas-monetary-policy-statement-12apr24
+    confidence: high
+
+  - date: 2024-07-26
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2024/mas-monetary-policy-statement-26jul24
+    confidence: high
+
+  - date: 2024-10-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2024/mas-monetary-policy-statement-14oct24
+    confidence: high
+
+  - date: 2025-01-24
+    scheduled: true
+    slope_change: decrease
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore reduce slightly the slope of the S$NEER policy band. There will be no change to the width of the policy band or the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2025/mas-monetary-policy-statement-24jan25
+    confidence: high
+
+  - date: 2025-04-14
+    scheduled: true
+    slope_change: decrease
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will continue with the policy of a modest and gradual appreciation of the S$NEER policy band. However, the rate of appreciation will be reduced slightly."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2025/mas-monetary-policy-statement-14apr25
+    confidence: high
+
+  - date: 2025-07-30
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2025/mas-monetary-policy-statement-30jul25
+    confidence: high
+
+  - date: 2025-10-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2025/mas-monetary-policy-statement-14oct25
+    confidence: high
+
+  - date: 2026-01-29
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the prevailing rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2026/mas-monetary-policy-statement-29jan26
+    confidence: high
+
+  - date: 2026-04-14
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore increase slightly the rate of appreciation of the S$NEER policy band. There will be no change to its width and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2026/mas-monetary-policy-statement-14apr26
+    confidence: high
+
+  - date: 2026-07-27
+    scheduled: true
+    slope_change: increase
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore increase the rate of appreciation of the policy band very slightly."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2026/mas-monetary-policy-statement-27jul26
+    confidence: high
+
+  - date: 2026-10-14
+    scheduled: true
+    slope_change: unchanged
+    slope_stance: appreciation
+    centre: unchanged
+    width: unchanged
+    quote: "MAS will therefore maintain the rate of appreciation of the policy band. There will be no change to the width of the band and the level at which it is centred."
+    url: https://www.mas.gov.sg/news/monetary-policy-statements/2026/mas-monetary-policy-statement-14oct26
+    confidence: high

@@ -4,6 +4,9 @@
     python tasks.py lint                    ruff check
     python tasks.py bloomberg               Bloomberg connectivity check
     python tasks.py collect [args]          pull every registry series into the cache + re-verify
+    python tasks.py singstat [args]         fetch SingStat tables + cross-check vs cached Bloomberg
+    python tasks.py process [args]          build the model-ready panel from the cache (P1.13)
+    python tasks.py qa [args]               data QA report -> outputs/data_qa.html (P1.14)
     python tasks.py data|estimate|irf|simulate|backtest|report [run_sms args]
     python tasks.py all [run_sms args]      whole pipeline, e.g. python tasks.py all --synthetic
 
@@ -37,6 +40,12 @@ def main(argv=None):
         return run([PY, "-m", "data.check_bloomberg", *rest])
     if task == "collect":
         return run([PY, "-m", "data.collect_data", *rest])
+    if task == "singstat":
+        return run([PY, "-m", "data.singstat", *rest])
+    if task == "process":
+        return run([PY, "-m", "data.process_data", *rest])
+    if task == "qa":
+        return run([PY, "-m", "data.qa_report", *rest])
     if task == "all":
         return run([PY, "run_sms.py", *rest])
     if task in STEPS:
