@@ -1,0 +1,99 @@
+# =============================================================================
+# SMS replication — SingStat Table Builder cross-check map (IMPLEMENTATION_PLAN.md, P1.8)
+# =============================================================================
+# Public SingStat tables used to cross-check Bloomberg series (P1.14).
+# Each table maps SingStat series names (exact `rowText`) to the registry
+# ticker in config/tickers.yaml that measures the same thing.
+#
+#   compare: level   -> compare values directly (after `scale`)
+#            growth  -> compare period-on-period log changes (bases differ)
+#   scale:   multiplier applied to SingStat values to match Bloomberg units (default 1)
+#
+# Verified against the API 2026-10-27. API: https://tablebuilder.singstat.gov.sg/api/table
+# SingStat trade tables have no euro-area row (only "Europe"), so SEMCEZ /
+# SIMCEZ are not cross-checked. SingStat NODX by market covers 10 markets only
+# (no India, Philippines or Australia), so it can't fill the NODX gaps.
+# =============================================================================
+
+tables:
+  gdp:
+    id: M015662          # GDP in chained (2015) dollars, by industry, quarterly, SA (1975Q1+)
+    freq: Q
+    compare: level
+    series:
+      "GDP In Chained (2015) Dollars": "SGDSTOTL Index"
+
+  cpi:
+    id: M213752          # CPI, 2024 base, monthly, SA (1961+)
+    freq: M
+    compare: growth      # Bloomberg and SingStat index bases differ
+    series:
+      "All Items": "SICPISA Index"
+
+  nodx:
+    id: M451301          # Non-oil domestic exports by selected market, monthly, S$ THOUSAND (1978+)
+    freq: M
+    compare: level
+    scale: 0.001         # SingStat thousands -> Bloomberg millions
+    series:
+      "Total": "SIEXPNO Index"
+      "United States Of America": "SIEXTOUS Index"
+      "EU": "SIEXTOEU Index"
+      "Japan": "SIEXTOJN Index"
+      "Mainland China": "SIEXTOCH Index"
+      "Hong Kong": "SIEXTOHK Index"
+      "Indonesia": "SIEXTOIJ Index"
+      "Republic Of Korea": "SIEXTOKO Index"
+      "Malaysia": "SIEXTOMA Index"
+      "Taiwan": "SIEXTOTW Index"
+      "Thailand": "SIEXTOTH Index"
+
+  exports:
+    id: M451521          # Merchandise exports by region and market, monthly, S$ million (2003+)
+    freq: M
+    compare: level
+    series:
+      "United States Of America": "SEMCUSA Index"
+      "Japan": "SEMCJAPN Index"
+      "Mainland China": "SEMCCHNA Index"
+      "Hong Kong": "SEMCHK Index"
+      "India": "SEMCINDI Index"
+      "Indonesia": "SEMCINDO Index"
+      "Republic Of Korea": "SEMCKREA Index"
+      "Malaysia": "SEMCMALY Index"
+      "Philippines": "SEMCPHIL Index"
+      "Taiwan": "SEMCTAIW Index"
+      "Thailand": "SEMCTHAI Index"
+      "Brazil": "SEMCBRAZ Index"
+      "Mexico": "SEMCMEXI Index"
+      "Chile": "SEMCCHIL Index"
+      "Colombia": "SEMCCOLO Index"
+      "Peru": "SEMCPERU Index"
+      "Australia": "SEMCAUST Index"
+      "Canada": "SEMCCANA Index"
+      "United Kingdom": "SEMCUK Index"
+
+  imports:
+    id: M451491          # Merchandise imports by region and market, monthly, S$ million (2003+)
+    freq: M
+    compare: level
+    series:
+      "United States Of America": "SIMCUSA Index"
+      "Japan": "SIMCJAPN Index"
+      "Mainland China": "SIMCCHNA Index"
+      "Hong Kong": "SIMCHK Index"
+      "India": "SIMCINDI Index"
+      "Indonesia": "SIMCINDO Index"
+      "Republic Of Korea": "SIMCKREA Index"
+      "Malaysia": "SIMCMALY Index"
+      "Philippines": "SIMCPHIL Index"
+      "Taiwan": "SIMCTAIW Index"
+      "Thailand": "SIMCTHAI Index"
+      "Brazil": "SIMCBRAZ Index"
+      "Mexico": "SIMCMEXI Index"
+      "Chile": "SIMCCHIL Index"
+      "Colombia": "SIMCCOLO Index"
+      "Peru": "SIMCPERU Index"
+      "Australia": "SIMCAUST Index"
+      "Canada": "SIMCCANA Index"
+      "United Kingdom": "SIMCUK Index"

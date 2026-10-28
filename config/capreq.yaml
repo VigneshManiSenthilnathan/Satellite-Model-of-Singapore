@@ -1,13 +1,76 @@
 # =============================================================================
 # SMS replication — Tier-1 capital requirement timeline (IMPLEMENTATION_PLAN.md, P1.7)
 # =============================================================================
-# Hand-coded step function of the regulatory minimum Tier-1 capital ratio
-# (CAPREQ_BAR) from MAS Notice 637 and its earlier versions, including the
-# Basel III phase-in dates. Cite the notice version for each step.
+# Minimum capital adequacy ratios (CAR, % of risk-weighted assets) for
+# Singapore-incorporated banks, from public MAS media releases. Each step holds
+# from its `from` date until the next step.
 #
-# Planned shape:
-#   steps:
-#     - {from: 2013-01-01, tier1_min: 6.5, source: "MAS Notice 637 (2012), ..."}
+# CAPREQ_BAR (decision 2026-10-27) = tier1_min + ccb, i.e. the Tier 1 minimum
+# plus the capital conservation buffer phased in over 2016-2019. The
+# minimum-only variant (tier1_min) is kept for robustness runs.
+#
+#   tier1_min  minimum Tier 1 CAR
+#   total_min  minimum Total CAR
+#   cet1_min   minimum Common Equity Tier 1 CAR (Basel III, from 2013)
+#   ccb        capital conservation buffer (CET1), phased in from 2016
+#
+# Before 1992: undefined. No public MAS source found; the model sample is
+# expected to start in the mid-1990s (P3.6).
+# Countercyclical buffer: not included (discretionary; no Singapore rate found).
+# After 2019: unchanged. Confirmed 2026-10-28 from DBS's Pillar 3 capital
+# adequacy disclosure at 30 Jun 2026 (template of MAS Notice 637 Annex 11A):
+# national minima CET1 6.5%, Tier 1 8.0%, Total 10.0%; CCB 2.5% (from 2019);
+# no D-SIB buffer. The Notice versions of 1 Jul 2024 (final Basel III),
+# 1 Jan 2025 (countercyclical-buffer calculation) and 1 Jan 2026 (AT1/Tier 2
+# instruments) left these minima unchanged. DBS's 0.2% countercyclical buffer
+# is bank-specific (foreign exposures) and stays excluded.
+# Source: https://www.dbs.com/iwov-resources/images/investors/quarterly-financials/2026/2Q26_P3_other_regulatory_disclosures.pdf
 # =============================================================================
 
-steps: []
+measure: tier1_plus_ccb   # tier1_plus_ccb (CAPREQ_BAR) | tier1_min (variant)
+
+steps:
+  - from: 1992-01-01   # "Since 1992" -- exact date not given
+    tier1_min: 12.0
+    total_min: 12.0
+    ccb: 0.0
+    source: "MAS media release, 27 Nov 1998 (appendix): 'Since 1992, Singapore banks have been required to maintain a CAR of 12%, comprising entirely of Tier 1 capital'"
+    url: https://www.mas.gov.sg/news/media-releases/1998/dpm-pays-tribute-to-private-sector-contribution-to-financial-sector-reform--27-nov-1998
+
+  - from: 1998-12-01
+    tier1_min: 10.0
+    total_min: 12.0
+    ccb: 0.0
+    source: "MAS media release, 27 Nov 1998: from 1 Dec 1998 at least 10% Tier 1; remaining 2% may be Upper Tier 2"
+    url: https://www.mas.gov.sg/news/media-releases/1998/dpm-pays-tribute-to-private-sector-contribution-to-financial-sector-reform--27-nov-1998
+
+  - from: 2000-09-30
+    tier1_min: 8.0
+    total_min: 12.0
+    ccb: 0.0
+    source: "MAS, 'Changes to the capital adequacy ratio for Singapore-incorporated banks', 19 Sep 2000"
+    url: https://www.mas.gov.sg/news/speeches/2000/changes-to-the-capital-adequacy-ratio-for-singapore-incorporated-banks--19-sep-2000
+
+  - from: 2004-06-30
+    tier1_min: 7.0
+    total_min: 10.0
+    ccb: 0.0
+    source: "MAS media release, 'Changes to the capital adequacy requirements', 28 May 2004"
+    url: https://www.mas.gov.sg/news/media-releases/2004/changes-to-the-capital-adequacy-requirements
+
+  - from: 2007-03-01
+    tier1_min: 6.0
+    total_min: 10.0
+    ccb: 0.0
+    source: "MAS media release, 'Change to capital adequacy requirements', 8 Feb 2007"
+    url: https://www.mas.gov.sg/news/media-releases/2007/change-to-capital-adequacy-requirements
+
+  # Basel III phase-in (revised MAS Notice 637). Tier 1 is unchanged at 6% in 2013,
+  # but its definition tightens and a CET1 minimum is introduced.
+  - {from: 2013-01-01, cet1_min: 4.5, tier1_min: 6.0, total_min: 10.0, ccb: 0.0,   source: &b3 "MAS media release, 'MAS strengthens capital requirements for Singapore-incorporated banks', 28 Jun 2011, Table 2", url: &b3url https://www.mas.gov.sg/news/media-releases/2011/mas-strengthens-capital-requirements-for-singapore-incorporated-banks}
+  - {from: 2014-01-01, cet1_min: 5.5, tier1_min: 7.0, total_min: 10.0, ccb: 0.0,   source: *b3, url: *b3url}
+  - {from: 2015-01-01, cet1_min: 6.5, tier1_min: 8.0, total_min: 10.0, ccb: 0.0,   source: *b3, url: *b3url}
+  - {from: 2016-01-01, cet1_min: 6.5, tier1_min: 8.0, total_min: 10.0, ccb: 0.625, source: *b3, url: *b3url}
+  - {from: 2017-01-01, cet1_min: 6.5, tier1_min: 8.0, total_min: 10.0, ccb: 1.25,  source: *b3, url: *b3url}
+  - {from: 2018-01-01, cet1_min: 6.5, tier1_min: 8.0, total_min: 10.0, ccb: 1.875, source: *b3, url: *b3url}
+  - {from: 2019-01-01, cet1_min: 6.5, tier1_min: 8.0, total_min: 10.0, ccb: 2.5,   source: *b3, url: *b3url}
